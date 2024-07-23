@@ -1,4 +1,6 @@
 bin
+bincover
+n2kreplays
 
 # Binaries for programs and plugins
 *.exe

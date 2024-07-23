@@ -1,33 +1,46 @@
 package pgn
 
+import "fmt"
+
+// PgnWriter defines an interface for values that can write Pgns.
 type PgnWriter interface {
 	WritePgn(MessageInfo, []uint8) error
 }
 
-type Publish struct {
+// Publisher defines an object that can interact with a PgnWriter
+type Publisher struct {
 	handler PgnWriter
 }
 
-func NewPublisher(handler PgnWriter) Publish {
-	return Publish{
+// NewPublisher returns a new Publisher instance with the specified PgnWriter
+func NewPublisher(handler PgnWriter) Publisher {
+	return Publisher{
 		handler: handler,
 	}
 }
 
+// PgnStruct defines an interface for Pgns that can write their data in the NMEA 2K wire format
 type PgnStruct interface {
-	Encode(stream *DataStream) (*MessageInfo, error)
+	Encode(*DataStream) (*MessageInfo, error)
+	Marshal() ([]byte, error)
 }
 
 // Write writes a golang type describing a PGN to the n2k network.
 // If validates the type passed in and returns an error if invalid
 // The pgn is written to the network asynchronously, so errors are logged
-func (p *Publish) Write(pgn PgnStruct) error {
-	data := make([]uint8, 0, 223)
+func (p *Publisher) Write(s any) error {
+	var info *MessageInfo
+	var err error
+	data := make([]uint8, 223)
 	stream := NewDataStream(data)
-	info, err := pgn.Encode(stream)
+	if v, ok := s.(PgnStruct); ok {
+		info, err = v.Encode(stream)
+	} else {
+		return fmt.Errorf("trying to write a struct that isn't a PGN")
+	}
 	if err == nil {
 		if p.handler != nil {
-			err = p.handler.WritePgn(*info, data)
+			err = p.handler.WritePgn(*info, data[0:stream.byteOffset:stream.byteOffset])
 		}
 	}
 	return err

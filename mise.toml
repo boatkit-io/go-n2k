@@ -1,0 +1,44 @@
+[tools]
+golang = "1.22"
+golangci-lint = "1.60"
+"go:mvdan.cc/sh/v3/cmd/shfmt" = "latest"
+"go:gotest.tools/gotestsum" = "v1.12.0"
+"go:golang.org/x/tools/cmd/goimports" = "latest"
+"go:github.com/thenativeweb/get-next-version" = "latest"
+"go:github.com/getoutreach/lintroller/cmd/lintroller" = "v1.18.2"
+
+[tasks.build]
+env = { "CGO_ENABLED" = "0" }
+description = "Build tools"
+run = "go build -o ./bin/ ./cmd/*"
+
+[tasks.buildcover]
+env = { "CGO_ENABLED" = "0" }
+description = "Build tools"
+run = "go build -cover -o ./bincover/ ./cmd/*"
+
+[tasks.pgngen]
+env = { "CGO_ENABLED" = "0" }
+description = "Generate Pgninfo"
+run = "./bin/pgngen"
+
+[tasks.test]
+description = "Run tests"
+run = ["gotestsum"]
+
+[tasks.lint]
+description = "Run linters"
+run = [
+  "golangci-lint run",
+  "lintroller -config lintroller.yaml ./...",
+]
+
+[tasks.fmt]
+alias = "format"
+description = "Format code"
+run = [
+  "go mod tidy",
+  "gofmt -s -w .",
+  "goimports -w .",
+  "shfmt -w -i 2 -ci -sr .",
+]

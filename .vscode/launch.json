@@ -5,13 +5,73 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug App",
+            "name": "pgngen",
+            "type": "go",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/pgngen",
+            "args": [
+            ]
+        },
+        {
+            "name": "convertcandumps",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/cmd/pgngen",
-            "args": [],
-            "cwd": "${workspaceFolder}"
+            "program": "${workspaceFolder}/cmd/convertcandumps",
+            "args": [
+                "--inputFormat",
+                "raw",
+                "--outputFormat",
+                "n2k",
+                "--inputPath",
+                "/home/russd/dev/n2k/n2kreplays/2024-07-23-inquest.raw",
+                "--outputPath",
+                "/home/russd/dev/n2k/n2kreplays/2024-07-23-inquest.001"
+            ]
+        },
+        {
+            "name": "replay",
+            "type": "go",
+            "request": "launch",
+            "mode":"debug",
+            "program": "${workspaceFolder}/cmd/replay",
+            "args": [
+                "--replayFile",
+                "${workspaceFolder}/n2kreplays/dirona-actisense-serial.n2k",
+                "--writeRaw",
+                "--dumpPgns",
+                "--rawOutFile",
+                "${workspaceFolder}/newoutfile.raw"
+            ]
+        },
+        {
+            "name": "compareRaw",
+            "type": "go",
+            "request": "launch",
+            "mode":"debug",
+            "program": "${workspaceFolder}/cmd/compareRaw",
+            "args": [
+                "--inputFile2",
+                "${workspaceFolder}/n2kreplays/2024-07-23-inquest.raw",
+                "--inputFile1",
+                "${workspaceFolder}/n2kreplays/2024-07-23-inquest-001.raw"
+            ]
+        },
+        {
+            "name": "compareJson",
+            "type": "go",
+            "request": "launch",
+            "mode":"debug",
+            "program": "${workspaceFolder}/cmd/compareJson",
+            "args": [
+                "--inputFile2",
+                "${workspaceFolder}/original.json",
+                "--inputFile1",
+                "${workspaceFolder}/new.json"
+            ]
         }
+
     ]
 }

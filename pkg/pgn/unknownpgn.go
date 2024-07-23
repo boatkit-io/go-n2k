@@ -11,9 +11,9 @@ type UnknownPGN struct {
 	WasUnseen        bool // Marked as not seen in log files by Canboat.
 }
 
+// Encode is a dummy method to allow an UnnownPGN to satisfy the PgnStruct interface
+//
+//lint:ignore U1000 // we don't encode UnknowPGN, but want it to satisfy the interface
 func (p *UnknownPGN) Encode(stream *DataStream) (*MessageInfo, error) {
-	if stream != nil {
-		// use to avoid compile error. Don't care.
-	}
 	return &p.Info, nil
 }

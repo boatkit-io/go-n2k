@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode/utf16"
 )
 
 // isEOF method returns true if the offsets exactly equal the data length
@@ -43,20 +44,40 @@ func (s *DataStream) readLookupField(bitLength uint16) (uint64, error) {
 }
 
 // readSignedResolution method reads the specified length of data, scales it, and returns as a *float32.
-func (s *DataStream) readSignedResolution(bitLength uint16, multiplyBy float32) (*float32, error) {
-	if bitLength > 64 {
-		return nil, fmt.Errorf("requested %d bitLength in ReadSignedResolution", bitLength)
+func (s *DataStream) readSignedResolution(length uint16, resolution float32, offset int32) (*float32, error) {
+	// For 32-bit fields, handle as IEEE 754 float if no resolution/offset
+	if length == 32 && resolution == 1 && offset == 0 {
+		val, err := s.getNumberRaw(length)
+		if err != nil {
+			return nil, err
+		}
+		if val == missingValue(length, true) {
+			return nil, nil
+		}
+		result := math.Float32frombits(uint32(val))
+		return &result, nil
 	}
 
-	v, err := s.getSignedNullableNumber(bitLength)
+	// Otherwise handle as scaled integer
+	val, err := s.getSignedNullableNumber(length)
 	if err != nil {
 		return nil, err
 	}
-	if v == nil {
+	if val == nil {
 		return nil, nil
 	}
-	vo := float32(*v) * multiplyBy
-	return &vo, nil
+
+	result := float32(*val)
+
+	// First apply resolution
+	if resolution != 0 && resolution != 1 {
+		prec := calcPrecision(float64(resolution))
+		result = roundFloat32(result*resolution, prec)
+	}
+
+	// Then add offset
+	result += float32(offset)
+	return &result, nil
 }
 
 // readSignedResolution64Override method reads the specified length of data, scales it, and returns as a *float64.
@@ -77,7 +98,7 @@ func (s *DataStream) readSignedResolution64Override(bitLength uint16, multiplyBy
 }
 
 // readUnsignedResolution method reads the specified data as an unsigned number and scales it.
-func (s *DataStream) readUnsignedResolution(bitLength uint16, multiplyBy float32) (*float32, error) {
+func (s *DataStream) readUnsignedResolution(bitLength uint16, multiplyBy float32, offset int32) (*float32, error) {
 	if bitLength > 64 {
 		return nil, fmt.Errorf("requested %d bitLength in ReadUnsignedResolution", bitLength)
 	}
@@ -89,8 +110,17 @@ func (s *DataStream) readUnsignedResolution(bitLength uint16, multiplyBy float32
 	if v == nil {
 		return nil, nil
 	}
-	vo := float32(*v) * multiplyBy
-	return &vo, nil
+
+	// Use float64 for intermediate calculations to maintain precision
+	val := float64(*v)
+	val += float64(offset)
+	if multiplyBy != 0 && multiplyBy != 1 && multiplyBy != 1.0 {
+		val = val * float64(multiplyBy)
+		//		val = roundFloat(val, calcPrecision(float64(multiplyBy)))
+	}
+
+	result := float32(val)
+	return &result, nil
 }
 
 // readUInt64 method reads and returns *uint64
@@ -230,39 +260,29 @@ func (s *DataStream) readInt8(bitLength uint16) (*int8, error) {
 
 // readFloat32 method reads and returns a *float32
 func (s *DataStream) readFloat32() (*float32, error) {
-	v, err := s.readUInt32(32)
-	if err != nil {
-		return nil, err
-	}
-	if v == nil {
-		return nil, nil
-	}
-	vo := math.Float32frombits(*v)
-	return &vo, nil
+	return s.readSignedResolution(32, 1, 0)
 }
 
 // readBinaryData method reads the specified length of data and returns it in a uint8 slice
 func (s *DataStream) readBinaryData(bitLength uint16) ([]uint8, error) {
-	// For now, reuse getNumberRaw, 64 bits at a time
+	if s.bitOffset != 0 {
+		return nil, fmt.Errorf("Binary data must be aligned on byte boundary")
+	}
 	numBytes := uint16(math.Ceil(float64(bitLength) / 8))
+	oddBits := bitLength & 0x7
 	arr := make([]uint8, numBytes)
 
-	idx := 0
-	for i := uint16(0); i < bitLength; i += 64 {
-		num := uint16(64)
-		if bitLength-i < 64 {
-			num = bitLength - i
-		}
-		v, err := s.getNumberRaw(num)
-		if err != nil {
-			return nil, err
-		}
-		for h := uint16(0); h < num; h += 8 {
-			arr[idx] = uint8((v & (0xFF << h)) >> h)
-			idx++
-		}
+	for i := uint16(0); i < numBytes; i++ {
+		arr[i] = s.data[s.byteOffset]
+		s.byteOffset++
 	}
-
+	// if oddBits != 0, then we need to mask off the bits that are beyond the bitLength
+	// we also need to adjust the bitOffset and byteOffset to account for the bits we're not returning
+	if oddBits != 0 {
+		arr[numBytes-1] &= uint8(0xFF) >> (8 - oddBits)
+		s.bitOffset += uint8(oddBits)
+		s.byteOffset--
+	}
 	return arr, nil
 }
 
@@ -295,7 +315,7 @@ func (s *DataStream) readBinaryData(bitLength uint16) ([]uint8, error) {
 */
 
 // readStringWithLengthAndControl method reads a string with length and control byte
-// String has a terminating zero.
+// String has a terminating zero(s). We remove them.
 // Length incudes the len/control bytes.
 //
 //	        "Name":"STRING_LAU",
@@ -304,39 +324,61 @@ func (s *DataStream) readBinaryData(bitLength uint16) ([]uint8, error) {
 //		"Comment":"It is unclear what character sets are allowed/supported. For single byte, assume ASCII. For UNICODE, assume UTF-16, but this has not been seen in the wild yet.",
 //
 // Conflicts with this comment:
-// Control 0 = ASCII, nonzero = UTF8 -- TBD how to address this in the future
 func (s *DataStream) readStringWithLengthAndControl() (string, error) {
 	lc, err := s.readBinaryData(16)
 	if err != nil {
 		return "", err
 	}
-	len := (uint16(lc[0]) - 2) * 8 // remove length and control bytes, leaves chars with terminating 0
+	if lc[0] < 4 { // 2 is zero-length, 0 or 1 is an error, 3 means there's only the terminating zero. Minimum length for content is 4
+		return "", nil
+	}
+	length := (uint16(lc[0]) - 2) * 8 // remove length and control bytes, calculate bitLength for remaining chars with terminating 0
 	// control := lc[1]
-	arr, err := s.readBinaryData(len)
+	arr, err := s.readBinaryData(length)
 	if err != nil {
 		return "", err
 	}
-	return string(arr), nil
+	arr = arr[:len(arr)-1] // remove the trailing 0
+
+	// if control == 0, then it's UTF-16. Convert to UTF-8
+	if lc[1] == 0 {
+		var a16 []uint16
+		for i := 0; i < len(arr); i += 2 {
+			n := uint16(arr[i])<<8 | uint16(arr[i+1])
+			a16 = append(a16, n)
+		}
+		runes := utf16.Decode(a16)
+		return string(runes), nil
+	} else {
+		return string(arr), nil
+	}
 }
 
 // readStringWithLength method reads a string with leading length byte
 // Canboat format "STRING_LZ"
-// String has a terminating zero
+// Oddly this type is always passed in a field with a fixed bitlength.
+// It's possible to ignore that, get the length byte, read the valid characters, and return
+// But only because in the currently defined PGNs it's always the last field, so not reading the complete field doesn't generate
+// alingnment issues for subsequent fields.
+// We'll read the field's defined length just in case it's used differently in a newly defined pgn.
+// String has a terminating zero; we remove it (and subsequent values up to the field's length)
 // Length does not seem to include length byte here
-func (s *DataStream) readStringWithLength() (string, error) {
-	len, err := s.readUInt8(8)
+/* func (s *DataStream) readStringWithLength(bitLength uint16) (string, error) {
+	arr, err := s.readBinaryData(bitLength)
 	if err != nil {
 		return "", err
 	}
-	if len == nil {
-		return "", fmt.Errorf("null length in ReadStringWithLength")
+	strLen := uint8(arr[0])
+	switch {
+	case strLen == 0:
+		return "", fmt.Errorf("0 length in ReadStringWithLength")
+	case strLen > uint8(len(arr))-1:
+		return "", fmt.Errorf("length > length of data in ReadStringWithLength")
+	case arr[strLen+1] != 0:
+		return "", fmt.Errorf("string not zero terminated in ReadStringWithLength")
 	}
-	arr, err := s.readBinaryData(uint16(*len * 8))
-	if err != nil {
-		return "", err
-	}
-	return string(arr), nil
-}
+	return string(arr[1 : strLen+1]), nil
+} */
 
 // readFixedString method reads a string of fixed length.
 func (s *DataStream) readFixedString(bitLength uint16) (string, error) {
@@ -402,20 +444,29 @@ func (s *DataStream) getNumberRaw(bitLength uint16) (uint64, error) {
 	return ret, nil
 }
 
-// getNullableNumberRaw method reads the specified length and returns a *uint64, or nil if maxvalue.
+// getNullableNumberRaw method reads the specified length and returns a *uint64, or nil if missing or invalid.
+// NMEA uses the maximum positive value to indicate a value is missing
+// and that value minus 1 to indicate the value isn't valid (a bad sensor is used as the example)
+// if the value's length is <4 it only uses the maximum positive value as a flag.
+// In this routine, if the value is signed and negative we return it as is
+// we then calculate the maximum positive value the length allows (shifted down by 1 bit if signed).
+// we decrease that by 2 if > 4 length, and 1 for length 2 and 3
+// if the received value is greater than that value we return nil.
 func (s *DataStream) getNullableNumberRaw(bitLength uint16, signed bool) (*uint64, error) {
 	v, err := s.getNumberRaw(bitLength)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check for max value -> nil
-	maxVal := uint64(0xFFFFFFFFFFFFFFFF)
-	maxVal >>= 64 - bitLength
 	if signed {
-		maxVal >>= 1
+		mask := uint64(1 << (bitLength - 1))
+		if (v & mask) > 0 { // negative signed number, so smaller than maxint, so just return
+			return &v, nil
+		}
 	}
-	if v == maxVal {
+
+	maxValue := calcMaxPositiveValue(bitLength, signed)
+	if v > maxValue { // either missing or invalid. We'll return nil either way
 		return nil, nil
 	}
 
@@ -439,7 +490,7 @@ func (s *DataStream) getSignedNullableNumber(bitLength uint16) (*int64, error) {
 
 	// Check if negative (max bit set)
 	mask := uint64(1 << (bitLength - 1))
-	if *v&mask > 0 {
+	if (*v & mask) > 0 {
 		*v ^= mask
 		vi := -int64(mask) + int64(*v)
 		return &vi, nil

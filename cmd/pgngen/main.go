@@ -172,6 +172,7 @@ type PGNField struct {
 	BitStart                 uint8
 	FieldType                string
 	Resolution               *float32
+	Offset                   int64
 	RangeMin                 float32
 	RangeMax                 float32
 	Match                    *int
@@ -222,23 +223,23 @@ func (conv *canboatConverter) filter() {
 	for _, pgn := range conv.PGNs {
 		keep = true
 		if !pgn.Complete {
-			switch len(pgn.Missing) {
-			case 0:
+			if len(pgn.Missing) == 0 {
 				panic("Complete is false but Missing is empty!")
-			case 1:
-				keep = true // pgn.Missing[0] == "Interval"
-			default:
-				incomplete = append(incomplete, pgn)
-				for _, miss := range pgn.Missing {
-					if miss == "SampleData" {
-						keep = false
-						unknown = append(unknown, pgn)
-					}
+			}
+			for i := range pgn.Missing {
+				if (pgn.Missing[i] == "Interval") || (pgn.Missing[i] == "Lookups") { // we don't care about these
+					continue
+				}
+				keep = false
+				if pgn.Missing[i] == "SampleData" { // we track these so we can provide sample data if we encounter them
+					unknown = append(unknown, pgn)
 				}
 			}
 		}
 		if keep {
 			known = append(known, pgn)
+		} else {
+			incomplete = append(incomplete, pgn)
 		}
 	}
 	conv.PGNs = known
@@ -271,9 +272,11 @@ func (conv *canboatConverter) write() {
 		}).Parse(pgninfoTemplate))
 
 		templateData := struct {
-			PGNDoc any
+			PGNDoc   any
+			ForDebug bool
 		}{
-			PGNDoc: conv,
+			PGNDoc:   conv,
+			ForDebug: false,
 		}
 
 		if err := t.Execute(f, templateData); err != nil {
@@ -313,10 +316,10 @@ func fixupField(field *PGNField, dedup DeDuper) {
 		convertToConst(&field.FieldTypeLookupName)
 	}
 	if field.FieldType == "LOOKUP" && len(field.LookupName) == 0 {
-		log.Infof("Lookup without Enumeration Name: " + field.Id)
+		log.Infof("Lookup without Enumeration Name: %s", field.Id)
 	}
 	if firstTime, _ := dedup.unique(field.Id); !firstTime {
-		panic("field ID not unique: " + field.Id)
+		panic("field ID not unique: %s" + field.Id)
 	}
 	if len(field.LookupName) > 0 {
 		convertToConst(&field.LookupName)
@@ -350,6 +353,8 @@ func (builder *canboatConverter) fixRepeating() {
 			pgn.FieldsRepeating1 = []PGNField{}
 		}
 	}
+	builder.zeroBitOffsets()
+
 }
 
 // fixEnumDefs checks that enum names are unique and makes them legal golang identifiers.
@@ -437,6 +442,23 @@ func (builder *canboatConverter) validate() {
 	}
 	if specials > 0 {
 		panic("New special case(s) added to canboat.json. Resolve and update this check.")
+	}
+}
+
+// zeroBitOffsets sets the BitOffset fields of repeating fields
+// to 0 (issue filed with canboat)
+func (builder *canboatConverter) zeroBitOffsets() {
+	for _, p := range builder.PGNs {
+		if len(p.FieldsRepeating1) > 0 {
+			for i := range p.FieldsRepeating1 {
+				p.FieldsRepeating1[i].BitOffset = 0
+			}
+		}
+		if len(p.FieldsRepeating2) > 0 {
+			for i := range p.FieldsRepeating2 {
+				p.FieldsRepeating2[i].BitOffset = 0
+			}
+		}
 	}
 }
 
@@ -554,6 +576,10 @@ func convertFieldType(field PGNField) string {
 			}
 			return "*float32"
 		}
+		if field.Offset != 0 {
+			return "*float32"
+
+		}
 
 		var baseType string
 		switch {
@@ -588,65 +614,105 @@ func convertFieldType(field PGNField) string {
 	}
 }
 
-// getFloatType returns a string with the
-
 // getFieldSerializer returns a string that when evaluated writes its value into the output stream.
 // Used by template
-func getFieldSerializer(field PGNField) string {
+func getFieldSerializer(field PGNField, substruct string) string {
 	var outstr, pre, value, post string
-	if field.Unit != "" { // handle unit conversion now
-		outstr = ""
-	} else {
-		switch field.FieldType {
-		case "RESERVED":
-			outstr = fmt.Sprintf("err = stream.writeReserved(%d, %d)", field.BitLength, field.BitOffset)
-		case "SPARE":
-			outstr = fmt.Sprintf("err = stream.writeReserved(%d, %d)", field.BitLength, field.BitOffset)
-		case "LOOKUP", "BITLOOKUP", "INDIRECT_LOOKUP", "FIELDTYPE_LOOKUP", "FIELD_INDEX":
-			outstr = fmt.Sprintf("err = stream.putNumberRaw(uint64(p.%s), %d, %d)", field.Id, field.BitLength, field.BitOffset)
-		case "NUMBER", "TIME", "DATE", "MMSI":
-			switch {
-			case field.Signed:
-				outstr = ""
-			case field.Resolution != nil && *field.Resolution != 1.0:
-				pre = "err = stream.writeUnsignedResolution(float64("
-				if isPointerFieldType(field) {
-					value = "*"
-				}
-				value = value + "p.%s"
-				post = "), %d, %f, %d)"
-				outstr = fmt.Sprintf(pre+value+post, field.Id, field.BitLength, *field.Resolution, field.BitOffset)
-			default:
-				outstr = ""
-				/*			pre = "err = stream.putNumberRaw(uint64("
-							if isPointerFieldType(field) {
-								value = "*"
-							}
-							value += "p.%s"
-							post = "), %d, %d)"
-							outstr = fmt.Sprintf(pre+value+post, field.Id, field.BitLength, field.BitOffset)
-				*/
-			}
-		case "FLOAT":
-			pre = "err = stream.writeFloat32("
-			if isPointerFieldType(field) {
-				value = "*"
-			}
-			value += "p.%s"
-			post = ", %d, %d)"
-			outstr = fmt.Sprintf(pre+value+post, field.Id, field.BitLength, field.BitOffset)
-		case "BINARY":
-			outstr = fmt.Sprintf("err = stream.writeBinary(p.%s, %d, %d )", field.Id, field.BitLength, field.BitOffset)
-		case "STRING_FIX":
-			outstr = fmt.Sprintf("err = stream.writeBinary([]uint8(p.%s), %d, %d )", field.Id, field.BitLength, field.BitOffset)
-		case "STRING_LAU":
-			outstr = fmt.Sprintf("err = stream.writeStringLau(p.%s, %d, %d )", field.Id, field.BitLength, field.BitOffset)
-		default:
-			// outstr = ""
-			outstr = fmt.Sprintf("log.Infof(\"field %s, index %d, type %s, unhandled\")", field.Name, field.Order, field.FieldType)
+	var isUnit bool
+	if field.Unit != "" { // set conv to invoke conversion to default type
+		unitType, _ := getUnitType(field.Unit)
+		if isUnit = unitType != ""; isUnit {
+			return fmt.Sprintf("err = stream.writeUnit(p."+substruct+"%s, %d, %f, %d, %d, %t)", field.Id, field.BitLength, *field.Resolution, field.BitOffset, field.Offset, field.Signed)
 		}
-
 	}
+	switch field.FieldType {
+	case "RESERVED":
+		outstr = fmt.Sprintf("err = stream.writeReserved(%d, %d)", field.BitLength, field.BitOffset)
+	case "SPARE":
+		outstr = fmt.Sprintf("err = stream.writeSpare(%d, %d)", field.BitLength, field.BitOffset)
+	case "LOOKUP", "BITLOOKUP", "INDIRECT_LOOKUP", "FIELDTYPE_LOOKUP":
+		outstr = fmt.Sprintf("err = stream.putNumberRaw(uint64(p."+substruct+"%s), %d, %d)", field.Id, field.BitLength, field.BitOffset)
+	case "NUMBER", "TIME", "DATE", "MMSI", "FIELD_INDEX":
+		if field.Signed {
+			switch {
+			case field.Resolution != nil && (*field.Resolution != 1.0 || isUnit), field.Offset != 0:
+				size := "32"
+				if *field.Resolution <= resolution64BitCutoff {
+					size = "64"
+				}
+				pre = fmt.Sprintf("err = stream.writeSignedResolution%s(", size)
+				if len(value) == 0 {
+					if !isPointerFieldType(field) {
+						value = "&"
+					}
+					value += "p." + substruct + "%s"
+				}
+				post = ", %d, %g, %d, %d)"
+				outstr = fmt.Sprintf(pre+value+post, field.Id, field.BitLength, *field.Resolution, field.BitOffset, field.Offset)
+			case field.BitLength > 32:
+				outstr = fmt.Sprintf("err = stream.writeInt64(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			case field.BitLength > 16:
+				outstr = fmt.Sprintf("err = stream.writeInt32(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			case field.BitLength > 8:
+				outstr = fmt.Sprintf("err = stream.writeInt16(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			default:
+				outstr = fmt.Sprintf("err = stream.writeInt8(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			}
+		} else {
+			switch {
+			case field.Resolution != nil && (*field.Resolution != 1.0 || isUnit):
+				size := "32"
+				if *field.Resolution <= resolution64BitCutoff {
+					size = "64"
+				}
+				pre = fmt.Sprintf("err = stream.writeUnsignedResolution%s(", size)
+				if len(value) == 0 {
+					if !isPointerFieldType(field) {
+						value = "&"
+					}
+					value += "p." + substruct + "%s"
+				}
+				post = ", %d, %g, %d, %d)"
+				outstr = fmt.Sprintf(pre+value+post, field.Id, field.BitLength, *field.Resolution, field.BitOffset, field.Offset)
+			case field.BitLength > 32:
+				outstr = fmt.Sprintf("err = stream.writeUint64(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			case field.BitLength > 16:
+				outstr = fmt.Sprintf("err = stream.writeUint32(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			case field.BitLength > 8:
+				outstr = fmt.Sprintf("err = stream.writeUint16(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			default:
+				outstr = fmt.Sprintf("err = stream.writeUint8(p."+substruct+"%s, %d, %d)", field.Id, field.BitLength, field.BitOffset)
+			}
+		}
+	case "FLOAT":
+		if field.BitLength > 32 {
+			pre = "err = stream.writeFloat64("
+		} else {
+			pre = "err = stream.writeFloat32("
+		}
+		value += "p." + substruct + "%s"
+		post = ", %d, %d)"
+		outstr = fmt.Sprintf(pre+value+post, field.Id, field.BitLength, field.BitOffset)
+	case "VARIABLE":
+		outstr = fmt.Sprintf("err = stream.writeBinary(p."+substruct+"%s, %d, %d )", field.Id, field.BitLength, field.BitOffset)
+	case "BINARY":
+		if field.BitLength > 0 {
+			outstr = fmt.Sprintf("err = stream.writeBinary(p."+substruct+"%s, %d, %d )", field.Id, field.BitLength, field.BitOffset)
+		} else {
+			outstr = fmt.Sprintf("err = stream.writeBinary(p."+substruct+"%s,"+"binaryLength, %d)", field.Id, field.BitOffset)
+		}
+	case "STRING_FIX":
+		outstr = fmt.Sprintf("err = stream.writeStringFix([]uint8(p."+substruct+"%s), %d, %d )", field.Id, field.BitLength, field.BitOffset)
+	case "STRING_LAU":
+		outstr = fmt.Sprintf("err = stream.writeStringLau(p."+substruct+"%s, %d )", field.Id, field.BitOffset)
+	case "STRING_LZ":
+		outstr = fmt.Sprintf("err = stream.writeStringWithLength(p."+substruct+"%s, %d, %d )", field.Id, field.BitLength, field.BitOffset)
+	case "KEY_VALUE":
+		outstr = fmt.Sprintf("err = stream.writeBinary(p."+substruct+"%s, valueLength, 0)", field.Id)
+	default:
+		outstr = fmt.Sprintf("log.Infof(\"field %s, index %d, type %s, unhandled\")", field.Name, field.Order, field.FieldType)
+	}
+
 	return outstr
 }
 
@@ -682,8 +748,8 @@ func getFieldDeserializer(pgn PGN, field PGNField) [2]string {
 			switch {
 			case field.Resolution != nil && *field.Resolution <= resolution64BitCutoff:
 				outerVal = fmt.Sprintf("stream.readSignedResolution64Override(%d, %g)", field.BitLength, *field.Resolution)
-			case field.Resolution != nil && *field.Resolution != 1.0:
-				outerVal = fmt.Sprintf("stream.readSignedResolution(%d, %g)", field.BitLength, *field.Resolution)
+			case field.Resolution != nil && *field.Resolution != 1.0, field.Offset != 0:
+				outerVal = fmt.Sprintf("stream.readSignedResolution(%d, %g, %d)", field.BitLength, *field.Resolution, field.Offset)
 			case field.BitLength > 32:
 				outerVal = fmt.Sprintf("stream.readInt64(%d)", field.BitLength)
 			case field.BitLength > 16:
@@ -696,7 +762,7 @@ func getFieldDeserializer(pgn PGN, field PGNField) [2]string {
 		} else {
 			switch {
 			case field.Resolution != nil && *field.Resolution != 1.0:
-				outerVal = fmt.Sprintf("stream.readUnsignedResolution(%d, %g)", field.BitLength, *field.Resolution)
+				outerVal = fmt.Sprintf("stream.readUnsignedResolution(%d, %g, %d)", field.BitLength, *field.Resolution, field.Offset)
 			case field.BitLength > 32:
 				outerVal = fmt.Sprintf("stream.readUInt64(%d)", field.BitLength)
 			case field.BitLength > 16:
@@ -729,7 +795,7 @@ func getFieldDeserializer(pgn PGN, field PGNField) [2]string {
 	case "STRING_FIX":
 		return [2]string{fmt.Sprintf("stream.readFixedString(%d)", field.BitLength), ""}
 	case "STRING_LZ":
-		return [2]string{"stream.readStringWithLength()", ""}
+		return [2]string{fmt.Sprintf("stream.readStringWithLength(%d)", field.BitLength), ""}
 	case "BINARY":
 		if field.BitLength > 0 {
 			return [2]string{fmt.Sprintf("stream.readBinaryData(%d)", field.BitLength), ""}
@@ -800,7 +866,7 @@ func cacheFromWeb(name, url string) (string, error) {
 
 		f.Close()
 	} else {
-		log.Infof(fmt.Sprintf("Using cached file %s", name))
+		log.Infof("Using cached file %s", name)
 	}
 	return cachedName, nil
 }

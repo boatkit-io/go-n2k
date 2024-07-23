@@ -1,0 +1,464 @@
+package pgn
+
+import (
+	"math"
+	"math/rand"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/constraints"
+)
+
+// calcMax calculates the actual maximum value for a field
+func calcMax(field *FieldDescriptor) uint64 {
+	val := calcMaxPositiveValue(field.BitLength, field.Signed) + uint64(field.Offset)
+	if field.Resolution != 0 {
+		val = val * uint64(field.Resolution)
+	}
+	return val
+}
+
+// calcNumericValue is a generic helper function that handles numeric value calculation
+func calcNumericValue[T constraints.Integer | constraints.Float](field *FieldDescriptor, testType int) T {
+	switch testType {
+	case TestTypeZero:
+		return 0
+	case TestTypeMin:
+		if field.Offset != 0 {
+			return T(field.RangeMin - float64(field.Offset))
+		}
+		return T(field.RangeMin)
+	case TestTypeMax:
+		var val float64
+		if field.Offset != 0 {
+			val = float64(calcMax(field))
+		} else {
+			val = field.RangeMax
+		}
+
+		// For 32-bit unit types, ensure we don't exceed their range
+		if reflect.TypeOf(T(0)).Bits() == 32 {
+			if val > float64(math.MaxInt32) {
+				val = float64(math.MaxInt32)
+			}
+			if val < 0 {
+				val = float64(math.MinInt32)
+			}
+
+			// For unit types, ensure the value is aligned with the resolution
+			if field.Resolution > 1 {
+				val = math.Round(val/float64(field.Resolution)) * float64(field.Resolution)
+			}
+		}
+		return T(val)
+	case TestTypeRandom:
+		// Check if T is a floating point type using reflect
+		if reflect.TypeOf(T(0)).Kind() == reflect.Float64 || reflect.TypeOf(T(0)).Kind() == reflect.Float32 {
+			max := calcMax(field)
+			val := rand.Float64()*(float64(max)-field.RangeMin) + field.RangeMin
+
+			// Apply the same 32-bit and resolution handling
+			if reflect.TypeOf(T(0)).Bits() == 32 {
+				if val > float64(math.MaxInt32) {
+					val = float64(math.MaxInt32)
+				}
+				if val < float64(math.MinInt32) {
+					val = float64(math.MinInt32)
+				}
+				if field.Resolution > 1 {
+					val = math.Round(val/float64(field.Resolution)) * float64(field.Resolution)
+				}
+			}
+			return T(val)
+		}
+
+		// For integer types, handle large ranges safely
+		min := field.RangeMin
+		max := field.RangeMax
+
+		if max > float64(math.MaxInt) {
+			// For large ranges, use Float64 and convert to integer
+			range64 := max - min
+			randomFloat := rand.Float64() * range64
+			return T(randomFloat + min)
+		}
+
+		return T(rand.Intn(int(max-min+1)) + int(min))
+	}
+	return 0
+}
+
+// calcValue sets the value of the field to the testType
+func calcValue(field *FieldDescriptor, testType int, t reflect.Type) reflect.Value {
+	val := reflect.New(t)
+	switch t.Kind() {
+	case reflect.Int, reflect.Int64:
+		result := calcNumericValue[int64](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	case reflect.Int8:
+		result := calcNumericValue[int8](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	case reflect.Int16:
+		result := calcNumericValue[int16](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	case reflect.Int32:
+		result := calcNumericValue[int32](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	case reflect.Uint8:
+		result := calcNumericValue[uint8](field, testType)
+		val.Elem().Set(reflect.ValueOf(result).Convert(val.Elem().Type()))
+	case reflect.Uint16:
+		result := calcNumericValue[uint16](field, testType)
+		val.Elem().Set(reflect.ValueOf(result).Convert(val.Elem().Type()))
+	case reflect.Uint32:
+		result := calcNumericValue[uint32](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	case reflect.Uint, reflect.Uint64:
+		result := calcNumericValue[uint64](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	case reflect.Float32:
+		result := calcNumericValue[float32](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	case reflect.Float64:
+		result := calcNumericValue[float64](field, testType)
+		val.Elem().Set(reflect.ValueOf(result))
+	}
+	return val
+}
+
+func genBytes(numBytes uint16, testType int, field *FieldDescriptor) []uint8 {
+	switch testType {
+	case TestTypeZero, TestTypeMin, TestTypeMax:
+		bytes := make([]uint8, numBytes)
+		return bytes
+	case TestTypeRandom:
+		switch field.CanboatType {
+		case "STRING_FIX":
+			bytes := make([]uint8, numBytes)
+			// generate ascii string of length 1 to random length less than numBytes
+			length := rand.Intn(int(numBytes)) + 1
+			for i := 0; i < length; i++ {
+				bytes[i] = uint8(rand.Intn(26) + 65) // ASCII A-Z
+			}
+			// pad with 0, 0xFF, or "@" characters
+			padSeed := uint8(rand.Intn(3))
+			padChar := uint8('@')
+			switch padSeed {
+			case 0:
+				padChar = uint8(0)
+			case 1:
+				padChar = uint8(0xFF)
+			}
+			for i := length; i < int(numBytes); i++ {
+				bytes[i] = padChar
+			}
+			return bytes
+		case "STRING_LAU":
+			isUnicode := rand.Intn(2) == 0
+			if isUnicode {
+				// generate unicode string of random length between 5 and 20
+				length := rand.Intn(int(15)) + 5
+				// if even, add 1 byte to length for null terminator
+				if length%2 == 0 {
+					length++
+				}
+				bytes := make([]uint8, length)
+				bytes[0] = uint8(length) // and byte 1 is 0 for Unicode
+				numRunes := length / 2
+				for i := 0; i < numRunes; i++ {
+					bytes[i*2+1] = uint8(rand.Intn(65536)) // Unicode range 0-65535
+				} // null terminator is at the end
+				return bytes
+			} else {
+				// generate ascii string of length 1 to random length less than numBytes
+				length := rand.Intn(int(numBytes)) + 1
+				bytes := make([]uint8, length)
+				for i := 0; i < length; i++ {
+					bytes[i] = uint8(rand.Intn(26) + 65) // ASCII A-Z
+				}
+				// mask to field.BitLength if field.BitLength is not multiple of 8
+				if field.BitLength%8 != 0 {
+					bytes[len(bytes)-1] = bytes[len(bytes)-1] & uint8(field.BitLength%8)
+				}
+				return bytes
+			}
+		case "BINARY", "VARIABLE":
+			limit := numBytes
+			if limit == 0 {
+				limit = 8
+			}
+			bytes := make([]uint8, limit)
+			for i := 0; i < int(limit); i++ {
+				bytes[i] = uint8(rand.Intn(256))
+			}
+			if field.BitLength%8 != 0 {
+				bytes[len(bytes)-1] = bytes[len(bytes)-1] & uint8(field.BitLength%8)
+			}
+			return bytes
+		default: // do nothing
+		}
+	}
+	return []uint8{}
+}
+
+// First add this new function above setRepeatingState
+func initializeElement(elem reflect.Value, testType int) {
+	if !elem.IsValid() || elem.Kind() != reflect.Ptr {
+		return
+	}
+
+	elemValue := elem.Elem()
+	for i := 0; i < elemValue.NumField(); i++ {
+		field := elemValue.Field(i)
+		switch testType {
+		case TestTypeZero:
+			// Zero values are already set by default
+			continue
+
+		case TestTypeMin:
+			switch field.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				field.SetInt(math.MinInt64)
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				field.SetUint(0)
+			case reflect.Float32, reflect.Float64:
+				field.SetFloat(-math.MaxFloat64)
+			case reflect.Bool:
+				field.SetBool(false)
+			case reflect.String:
+				field.SetString("")
+			case reflect.Slice:
+				field.Set(reflect.MakeSlice(field.Type(), 0, 0))
+			case reflect.Ptr:
+				if !field.IsNil() {
+					field.Set(reflect.Zero(field.Type()))
+				}
+			}
+
+		case TestTypeMax:
+			switch field.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				field.SetInt(math.MaxInt64)
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				field.SetUint(math.MaxUint64)
+			case reflect.Float32, reflect.Float64:
+				field.SetFloat(math.MaxFloat64)
+			case reflect.Bool:
+				field.SetBool(true)
+			case reflect.String:
+				field.SetString("ZZZZZZZZZZ") // Max-like string value
+			case reflect.Slice:
+				field.Set(reflect.MakeSlice(field.Type(), 10, 10)) // Max-like slice length
+			}
+
+		case TestTypeRandom:
+			switch field.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				field.SetInt(rand.Int63())
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				field.SetUint(rand.Uint64())
+			case reflect.Float32, reflect.Float64:
+				field.SetFloat(rand.Float64())
+			case reflect.Bool:
+				field.SetBool(rand.Intn(2) == 1)
+			case reflect.String:
+				length := rand.Intn(20) + 1
+				bytes := make([]byte, length)
+				for i := range bytes {
+					bytes[i] = byte(rand.Intn(26) + 65) // A-Z
+				}
+				field.SetString(string(bytes))
+			case reflect.Slice:
+				length := rand.Intn(5) + 1
+				field.Set(reflect.MakeSlice(field.Type(), length, length))
+			}
+		}
+	}
+}
+
+// Then modify setRepeatingState to use this new function
+func setRepeatingState(o reflect.Value, testType int) {
+	if !o.IsValid() {
+		return
+	}
+
+	switch testType {
+	case TestTypeZero:
+		o.Set(reflect.MakeSlice(o.Type(), 1, 1))
+		elem := reflect.New(o.Type().Elem())
+		o.Index(0).Set(elem.Elem())
+		initializeElement(elem, testType)
+
+	case TestTypeMin, TestTypeMax:
+		o.Set(reflect.MakeSlice(o.Type(), 1, 1))
+		elem := reflect.New(o.Type().Elem())
+		o.Index(0).Set(elem.Elem())
+		initializeElement(elem, testType)
+
+	case TestTypeRandom:
+		numElems := rand.Intn(3) + 1
+		o.Set(reflect.MakeSlice(o.Type(), numElems, numElems))
+		for i := 0; i < numElems; i++ {
+			elem := reflect.New(o.Type().Elem())
+			o.Index(i).Set(elem.Elem())
+			initializeElement(elem, testType)
+		}
+	}
+}
+
+// setState sets the state of the object o to the testType
+func setState(o reflect.Value, n PgnInfo, testType int) {
+	// first check if fields named Repeating1 or Repeating2 exist
+	repeating1 := o.Elem().FieldByName("Repeating1")
+	repeating2 := o.Elem().FieldByName("Repeating2")
+	if repeating1.IsValid() && repeating1.IsNil() {
+		//		repeating1.Set(reflect.MakeSlice(repeating1.Type(), 1, 1))
+		setRepeatingState(repeating1, testType)
+	}
+	if repeating2.IsValid() && repeating2.IsNil() {
+		//		repeating2.Set(reflect.MakeSlice(repeating2.Type(), 1, 1))
+		setRepeatingState(repeating2, testType)
+	}
+	for _, field := range n.Fields {
+		fieldValue := o.Elem().FieldByName(field.Id)
+
+		// Handle Match value for uint8/uint16, pointer and non-pointer
+		if field.Match != -1 {
+			if fieldValue.Type().Kind() == reflect.Ptr {
+				// For pointer types (*uint8, *uint16)
+				newVal := reflect.New(fieldValue.Type().Elem())
+				newVal.Elem().SetUint(uint64(field.Match))
+				fieldValue.Set(newVal)
+			} else {
+				// For non-pointer types (uint8, uint16)
+				fieldValue.SetUint(uint64(field.Match))
+			}
+			continue
+		}
+		if n.Repeating1CountField != 0 && field.Order == n.Repeating1CountField {
+			length := uint64(repeating1.Len())
+			value := reflect.New(fieldValue.Type().Elem())
+			value.Elem().SetUint(length)
+			fieldValue.Set(value)
+			continue
+		}
+		if n.Repeating2CountField != 0 && field.Order == n.Repeating2CountField {
+			length := uint64(repeating2.Len())
+			value := reflect.New(fieldValue.Type().Elem())
+			value.Elem().SetUint(length)
+			fieldValue.Set(value)
+			continue
+		}
+		// Then handle the different types
+		if strings.HasPrefix(field.GolangType, "*units") {
+			fType := o.Elem().FieldByName(field.Id).Type()
+			unitVal := reflect.New(fType.Elem())
+
+			// Set the Value field of the unit type
+			valueField := unitVal.Elem().FieldByName("Value")
+			if valueField.IsValid() {
+				// Dereference the pointer returned by calcValue
+				calculatedValue := calcValue(field, testType, valueField.Type())
+				valueField.Set(calculatedValue.Elem())
+			}
+
+			o.Elem().FieldByName(field.Id).Set(unitVal)
+			continue
+		} else if strings.HasPrefix(field.GolangType, "*") {
+			fType := o.Elem().FieldByName(field.Id).Type()
+			o.Elem().FieldByName(field.Id).Set(calcValue(field, testType, fType.Elem()))
+			continue
+		}
+
+		switch field.GolangType {
+		case "": // skip Reserved and Spare canboat types
+			continue
+		case "*uint8":
+			o.Elem().FieldByName(field.Id).Set(calcValue(field, testType, o.Elem().FieldByName(field.Id).Type().Elem()))
+		case "[]uint8":
+			numBytes := uint16(0)
+			if !field.BitLengthVariable {
+				numBytes = uint16(math.Ceil(float64(field.BitLength) / 8))
+			}
+			o.Elem().FieldByName(field.Id).Set(reflect.ValueOf(genBytes(numBytes, testType, field)))
+		default:
+			o.Elem().FieldByName(field.Id).Set(calcValue(field, testType, o.Elem().FieldByName(field.Id).Type()).Elem())
+		}
+	}
+}
+
+// consts for test types: zero, min, max, random
+const (
+	TestTypeZero   = iota // All fields set to zero/nil/empty values
+	TestTypeMin           // All numeric fields set to minimum allowed values
+	TestTypeMax           // All numeric fields set to maximum allowed values
+	TestTypeRandom        // All fields set to random valid values
+)
+
+func TestPgns(t *testing.T) {
+	var mInfo *MessageInfo
+	for i := range pgnList {
+		for _, testType := range []int{TestTypeZero, TestTypeMin, TestTypeMax, TestTypeRandom} {
+			next := pgnList[i]
+			/* if next.Id != "ThrusterMotorStatus" {
+				continue
+			} */
+			if strings.HasPrefix(next.Id, "Nmea") {
+				continue
+			}
+
+			decoder := next.Decoder
+
+			oType := reflect.ValueOf(next.Instance).Elem().Type()
+			original := reflect.New(oType)
+			setState(original, next, testType)
+			buffer := make([]uint8, 254)
+			stream := NewDataStream(buffer)
+			if oPgn, ok := original.Interface().(PgnStruct); ok {
+				info, err := oPgn.Encode(stream)
+				mInfo = info
+				assert.NoError(t, err)
+				if err != nil {
+					continue
+				}
+			}
+			stream.data = stream.data[0:stream.byteOffset] // trim stream data to length
+			stream.resetToStart()
+			decoded, err := decoder(*mInfo, stream)
+			assert.NoError(t, err)
+
+			// Ignore timestamp field, as it's not part of Encode/Decode
+			//	original.Info.Timestamp = time.Time{}
+			//	decodedIso.Info.Timestamp = time.Time{}
+
+			// ... in your test:
+
+			opts := cmp.Options{
+				cmpopts.EquateEmpty(),
+				cmpopts.EquateApprox(0.001, 0.001),
+			}
+
+			diff := cmp.Diff(original.Elem().Interface(), decoded, opts)
+			assert.Empty(t, diff) // diff will be empty if the structs are equal
+		}
+	}
+}
+
+func TestFieldResolutions(t *testing.T) {
+	for _, pgn := range pgnList {
+		for _, field := range pgn.Fields {
+			if field.Resolution != 0 && field.Resolution != 1 && field.Resolution != 1.0 {
+				if !strings.HasPrefix(field.GolangType, "*units") &&
+					field.GolangType != "*float32" &&
+					field.GolangType != "*float64" {
+					t.Errorf("PGN %s field %s has resolution %f but type %s",
+						pgn.Id, field.Id, field.Resolution, field.GolangType)
+				}
+			}
+		}
+	}
+}
