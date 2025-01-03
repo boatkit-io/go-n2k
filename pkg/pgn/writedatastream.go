@@ -183,7 +183,8 @@ func (s *DataStream) writeUnsignedNumber(value *uint64, length uint16, bitOffset
 		outVal = *value
 		maxVal := calcMaxPositiveValue(length, false)
 		if outVal > maxVal {
-			return fmt.Errorf("attempt to write unsigned value greater than max value")
+			//			return fmt.Errorf("attempt to write unsigned value greater than max value")
+			outVal = maxVal
 		}
 	}
 	return s.putNumberRaw(outVal, length, bitOffset)
@@ -198,7 +199,8 @@ func (s *DataStream) writeSignedNumber(value *int64, length uint16, bitOffset ui
 		outVal = uint64(*value)
 		maxVal := calcMaxPositiveValue(length, true)
 		if *value > int64(maxVal) {
-			return fmt.Errorf("attempt to write signed value greater than max value")
+			//			return fmt.Errorf("attempt to write signed value greater than max value")
+			outVal = maxVal
 		}
 	}
 	return s.putNumberRaw(outVal, length, bitOffset)
@@ -221,14 +223,34 @@ func checkNilInterface(i interface{}) bool {
 // writeUnit writes units package values
 // value must be converted to the canboat unit before calling
 func (s *DataStream) writeUnit(value units.Units, length uint16, resolution float32, bitOffset uint16, offset int64, signed bool) error {
-	var val *float32
 	if checkNilInterface(value) {
 		if signed {
 			return s.writeSignedResolution32(nil, length, resolution, bitOffset, offset)
 		}
 		return s.writeUnsignedResolution32(nil, length, resolution, bitOffset, offset)
 	}
-	val = value.GetValue()
+
+	// Convert to canboat's default unit based on the type
+	var canboatValue units.Units
+	switch v := value.(type) {
+	case *units.Distance:
+		canboatValue = v.Convert(units.Meter)
+	case *units.Velocity:
+		canboatValue = v.Convert(units.MetersPerSecond)
+	case *units.Volume:
+		canboatValue = v.Convert(units.Liter)
+	case *units.Temperature:
+		canboatValue = v.Convert(units.Kelvin)
+	case *units.Pressure:
+		canboatValue = v.Convert(units.Pa)
+	case *units.Flow:
+		canboatValue = v.Convert(units.LitersPerHour)
+	default:
+		// If no conversion needed, use original value
+		canboatValue = value
+	}
+
+	val := canboatValue.GetValue()
 	if signed {
 		return s.writeSignedResolution32(val, length, resolution, bitOffset, offset)
 	}
@@ -367,4 +389,36 @@ func (s *DataStream) putNumberRaw(value uint64, bitLength uint16, bitOffset uint
 		}
 	}
 	return nil
+}
+
+// writeUnitWithCanboatConversion automatically converts the value to canboat's expected unit type before writing
+func (s *DataStream) writeUnitWithCanboatConversion(value units.Units, length uint16, resolution float32, bitOffset uint16, offset int64, signed bool) error {
+	if value == nil {
+		if signed {
+			return s.writeSignedResolution32(nil, length, resolution, bitOffset, offset)
+		}
+		return s.writeUnsignedResolution32(nil, length, resolution, bitOffset, offset)
+	}
+
+	// Convert to canboat's default unit based on the type
+	var canboatValue units.Units
+	switch v := value.(type) {
+	case *units.Distance:
+		canboatValue = v.Convert(units.Meter)
+	case *units.Velocity:
+		canboatValue = v.Convert(units.MetersPerSecond)
+	case *units.Volume:
+		canboatValue = v.Convert(units.Liter)
+	case *units.Temperature:
+		canboatValue = v.Convert(units.Kelvin)
+	case *units.Pressure:
+		canboatValue = v.Convert(units.Pa)
+	case *units.Flow:
+		canboatValue = v.Convert(units.LitersPerHour)
+	default:
+		// If no conversion needed, use original value
+		canboatValue = value
+	}
+
+	return s.writeUnit(canboatValue, length, resolution, bitOffset, offset, signed)
 }

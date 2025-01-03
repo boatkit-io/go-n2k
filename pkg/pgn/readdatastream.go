@@ -266,7 +266,7 @@ func (s *DataStream) readFloat32() (*float32, error) {
 // readBinaryData method reads the specified length of data and returns it in a uint8 slice
 func (s *DataStream) readBinaryData(bitLength uint16) ([]uint8, error) {
 	if s.bitOffset != 0 {
-		return nil, fmt.Errorf("Binary data must be aligned on byte boundary")
+		return nil, fmt.Errorf("binary data must be aligned on byte boundary")
 	}
 	numBytes := uint16(math.Ceil(float64(bitLength) / 8))
 	oddBits := bitLength & 0x7

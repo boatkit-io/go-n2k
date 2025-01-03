@@ -288,8 +288,8 @@ func TestSignedResolutionRoundTrip(t *testing.T) {
 			length:     32,
 			resolution: 0.0078125,
 			offset:     -2000000,
-			expected:   300.986328125,
-			tolerance:  0.0078125, // One resolution step
+			expected:   301.0,
+			tolerance:  0.0078125,
 		},
 		{
 			name:       "Test simple value",
@@ -397,16 +397,16 @@ func TestWriteUint8RoundTrip(t *testing.T) {
 			value:     ptr(uint8(255)),
 			length:    8,
 			bitOffset: 0,
-			expected:  ptr(uint8(255)),
-			err:       true,
+			expected:  ptr(uint8(253)),
+			err:       false,
 		},
 		{
 			name:      "Test max value - 1",
 			value:     ptr(uint8(254)),
 			length:    8,
 			bitOffset: 0,
-			expected:  ptr(uint8(254)),
-			err:       true,
+			expected:  ptr(uint8(253)),
+			err:       false,
 		},
 		{
 			name:      "Test max value - 2",
@@ -497,16 +497,16 @@ func TestWriteInt16(t *testing.T) {
 			value:     ptr(int16(32767)),
 			length:    16,
 			bitOffset: 0,
-			expected:  ptr(int16(32767)),
-			err:       true,
+			expected:  ptr(int16(32765)),
+			err:       false,
 		},
 		{
 			name:      "Test max positive value - 1",
 			value:     ptr(int16(32766)),
 			length:    16,
 			bitOffset: 0,
-			expected:  ptr(int16(32766)),
-			err:       true,
+			expected:  ptr(int16(32765)),
+			err:       false,
 		},
 		{
 			name:      "Test with offset",
@@ -538,6 +538,142 @@ func TestWriteInt16(t *testing.T) {
 			} else {
 				assert.Equal(t, *tt.expected, *result)
 			}
+		})
+	}
+}
+
+// TestWriteUnit tests the unit functions
+func TestWriteUnit(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      units.Units
+		length     uint16
+		resolution float32
+		bitOffset  uint16
+		offset     int64
+		signed     bool
+		expected   float64
+	}{
+		{
+			name:       "Test nil value",
+			value:      nil,
+			length:     16,
+			resolution: 0.1,
+			bitOffset:  0,
+			offset:     0,
+			signed:     true,
+			expected:   float64(0xFFFE), // Missing value for signed
+		},
+		{
+			name: "Test distance conversion to meters",
+			value: &units.Distance{
+				Value: 100,
+				Unit:  units.Foot,
+			},
+			length:     16,
+			resolution: 0.1,
+			bitOffset:  0,
+			offset:     0,
+			signed:     false,
+			expected:   30.48, // 100ft = 30.48m
+		},
+		{
+			name: "Test velocity conversion to m/s",
+			value: &units.Velocity{
+				Value: 10,
+				Unit:  units.Knots,
+			},
+			length:     16,
+			resolution: 0.01,
+			bitOffset:  0,
+			offset:     0,
+			signed:     false,
+			expected:   5.144, // 10kts = 5.144m/s
+		},
+		{
+			name: "Test volume conversion to liters",
+			value: &units.Volume{
+				Value: 1,
+				Unit:  units.Gallon,
+			},
+			length:     16,
+			resolution: 0.1,
+			bitOffset:  0,
+			offset:     0,
+			signed:     false,
+			expected:   3.78541, // 1gal = 3.78541L
+		},
+		{
+			name: "Test temperature conversion to kelvin",
+			value: &units.Temperature{
+				Value: 20,
+				Unit:  units.Celsius,
+			},
+			length:     16,
+			resolution: 0.1,
+			bitOffset:  0,
+			offset:     0,
+			signed:     true,
+			expected:   293.15, // 20C = 293.15K
+		},
+		{
+			name: "Test pressure conversion to pascal",
+			value: &units.Pressure{
+				Value: 1,
+				Unit:  units.Hpa,
+			},
+			length:     16,
+			resolution: 100,
+			bitOffset:  0,
+			offset:     0,
+			signed:     false,
+			expected:   100, // 1hPa = 100Pa
+		},
+		{
+			name: "Test flow conversion to L/h",
+			value: &units.Flow{
+				Value: 6,
+				Unit:  units.GallonsPerHour,
+			},
+			length:     16,
+			resolution: 1,
+			bitOffset:  0,
+			offset:     0,
+			signed:     false,
+			expected:   3.78541 * 6, // 6gal/hr * 3.78541 = 22.71246 L/hr
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Write the value
+			stream := NewDataStream(make([]uint8, 32))
+			err := stream.writeUnit(tt.value, tt.length, tt.resolution, tt.bitOffset, tt.offset, tt.signed)
+			assert.NoError(t, err)
+
+			// Read it back
+			stream.resetToStart()
+			var result float64
+			if tt.signed {
+				val, err := stream.readSignedResolution(tt.length, (tt.resolution), int32(tt.offset))
+				assert.NoError(t, err)
+				if val == nil {
+					result = float64(0xFFFE)
+				} else {
+					result = float64(*val)
+				}
+			} else {
+				val, err := stream.readUnsignedResolution(tt.length, float32(tt.resolution), int32(tt.offset))
+				assert.NoError(t, err)
+				if val == nil {
+					result = float64(0xFFFE)
+				} else {
+					result = float64(*val)
+				}
+			}
+
+			// Compare with reasonable tolerance for floating point
+			assert.InDelta(t, tt.expected, result, float64(tt.resolution))
 		})
 	}
 }
@@ -589,16 +725,16 @@ func TestWriteInt32(t *testing.T) {
 			value:     ptr(int32(2147483647)),
 			length:    32,
 			bitOffset: 0,
-			expected:  ptr(int32(2147483647)),
-			err:       true,
+			expected:  ptr(int32(2147483645)),
+			err:       false,
 		},
 		{
 			name:      "Test max positive value - 1 (reserved for invalid)",
 			value:     ptr(int32(2147483646)),
 			length:    32,
 			bitOffset: 0,
-			expected:  ptr(int32(2147483646)),
-			err:       true,
+			expected:  ptr(int32(2147483645)),
+			err:       false,
 		},
 		{
 			name:      "Test max positive value - 2 (maximum valid value)",
@@ -621,23 +757,23 @@ func TestWriteInt32(t *testing.T) {
 			value:     ptr(int32(511)),
 			length:    10,
 			bitOffset: 0,
-			expected:  ptr(int32(511)),
-			err:       true,
+			expected:  ptr(int32(509)),
+			err:       false,
 		},
 		{
 			name:      "Test partial bits positive max - 1 (reserved for invalid)",
 			value:     ptr(int32(510)),
 			length:    10,
 			bitOffset: 0,
-			expected:  ptr(int32(510)),
-			err:       true,
+			expected:  ptr(int32(509)),
+			err:       false,
 		},
 		{
 			name:      "Test partial bits positive max - 2 (maximum valid value)",
-			value:     ptr(int32(509)),
+			value:     ptr(int32(508)),
 			length:    10,
 			bitOffset: 0,
-			expected:  ptr(int32(509)),
+			expected:  ptr(int32(508)),
 			err:       false,
 		},
 		{

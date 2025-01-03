@@ -42,3 +42,21 @@ run = [
   "goimports -w .",
   "shfmt -w -i 2 -ci -sr .",
 ]
+
+[tasks.build-debug]
+description = "Build with debug fields included"
+run = '''
+rm -f pgninfo_generated.go
+PGNGEN_DEBUG=1 mise run build
+PGNGEN_DEBUG=1 mise run pgngen
+PGNGEN_DEBUG=1 mise run build
+'''
+
+[tasks.build-release]
+description = "Build without debug fields"
+run = '''
+rm -f pgninfo_generated.go
+PGNGEN_DEBUG=0 mise run build
+PGNGEN_DEBUG=0 mise run pgngen
+PGNGEN_DEBUG=0 mise run build
+'''
