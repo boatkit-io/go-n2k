@@ -77,7 +77,12 @@ func (n *N2kFileEndpoint) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		bts := strings.Split(line[31:], " ")
+		_, tail, ok := strings.Cut(line, "]")
+		if !ok {
+			return fmt.Errorf("failed to cut line")
+		}
+		tail = strings.TrimSpace(tail)
+		bts := strings.Split(tail, " ")
 		for i := range frame.Length {
 			_, err := fmt.Sscanf(bts[i], "%X", &frame.Data[i])
 			if err != nil {

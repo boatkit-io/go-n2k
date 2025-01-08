@@ -109,14 +109,15 @@ func TestNumerics(t *testing.T) {
 
 	// binary data
 	bdTests := []struct {
-		exp    []uint8
-		data   []uint8
-		offset uint16
-		length uint16
+		exp         []uint8
+		data        []uint8
+		offset      uint16
+		length      uint16
+		errExpected bool
 	}{
-		{[]uint8{1, 2, 3}, []uint8{1, 2, 3}, 0, 24},
-		{[]uint8{0x1E}, []uint8{0xFE}, 0, 5},
-		{[]uint8{0x21}, []uint8{0, 0x1F, 0xF2, 0}, 12, 8},
+		{[]uint8{1, 2, 3}, []uint8{1, 2, 3}, 0, 24, false},
+		{[]uint8{0x1E}, []uint8{0xFE}, 0, 5, false},
+		{[]uint8{0x21}, []uint8{0, 0x1F, 0xF2, 0}, 12, 8, true},
 	}
 
 	for _, tst := range bdTests {
@@ -125,8 +126,12 @@ func TestNumerics(t *testing.T) {
 			_, _ = p.readUInt64(uint16(tst.offset))
 		}
 		v, err := p.readBinaryData(tst.length)
-		assert.NoError(t, err)
-		assert.Equal(t, tst.exp, v)
+		if tst.errExpected {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, tst.exp, v)
+		}
 	}
 }
 

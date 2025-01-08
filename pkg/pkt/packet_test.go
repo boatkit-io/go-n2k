@@ -50,7 +50,7 @@ func TestNewPacket(t *testing.T) {
 	assert.Equal(t, uint8(7), p.Info.SourceId)
 	assert.Equal(t, uint8(1), p.Info.Priority)
 	assert.Equal(t, 0, len(p.ParseErrors))
-	assert.Equal(t, 2, len(p.Candidates))
+	assert.Equal(t, 1, len(p.Candidates))
 	assert.True(t, p.Fast)
 	p.GetManCode()
 	assert.Equal(t, pgn.ManufacturerCodeConst(381), p.Manufacturer)
@@ -81,18 +81,18 @@ func TestFilterSlow(t *testing.T) {
 
 func TestFilterFast(t *testing.T) {
 	pInfo := pgn.MessageInfo{
-		PGN:      130820,
+		PGN:      126720,
 		SourceId: 10,
 		Priority: 1,
 		TargetId: 0,
 	}
-	p := NewPacket(pInfo, []uint8{160, 5, (419 & 0xFF), (419 >> 8) | (4 << 5), 32, 128, 1, 255})
+	p := NewPacket(pInfo, []uint8{160, 5, (135 & 0xFF), (13 >> 8) | (4 << 5), 32, 128, 1, 255})
 	p.Data = p.Data[2:] // normally happens in sequence.complete()
 	p.Complete = true   // normally these 2 calls would happen by invoking b.process()
 	p.GetManCode()
 	p.AddDecoders()
 	assert.Equal(t, 0, len(p.ParseErrors))
-	assert.Equal(t, 16, len(p.Decoders)) // was 23, but 1 is furuno, and 6 have no sample data
+	assert.Equal(t, 10, len(p.Decoders)) // 10 pgns 126720 manufacturer airmar(135)
 }
 
 func TestBroadcast(t *testing.T) {

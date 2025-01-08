@@ -1820,8 +1820,8 @@ const (
 	UnderWaySailing	NavStatusConst = 8
 	HazardousMaterialHighSpeed	NavStatusConst = 9
 	HazardousMaterialWingInGround	NavStatusConst = 10
-	PowerDrivenVesslTowingAstern	NavStatusConst = 11
-	PowerDrivenVesslPushingAheadOrTowingAlongside	NavStatusConst = 12
+	PowerDrivenVesselTowingAstern	NavStatusConst = 11
+	PowerDrivenVesselPushingAheadOrTowingAlongside	NavStatusConst = 12
 	AISSART	NavStatusConst = 14
 )
 
@@ -1851,9 +1851,9 @@ func (e NavStatusConst) String() string {
 		case 10:
 			return "Hazardous material - Wing in Ground"
 		case 11:
-			return "Power-driven vessl towing astern"
+			return "Power-driven vessel towing astern"
 		case 12:
-			return "Power-driven vessl pushing ahead or towing alongside"
+			return "Power-driven vessel pushing ahead or towing alongside"
 		case 14:
 			return "AIS-SART"
 	default:
@@ -6211,6 +6211,162 @@ func (e SeatalkPilotMode16Const) String() string {
 	}
 }
 
+type StationHealthConst uint8
+const (
+	NotWorking	StationHealthConst = 0
+	Unmonitored	StationHealthConst = 1
+	HealthyOperational	StationHealthConst = 2
+	HealthyTestMode	StationHealthConst = 3
+	TestMode_2	StationHealthConst = 4
+)
+
+func (e StationHealthConst) GoString() string {return e.String() }
+func (e StationHealthConst) String() string {
+	switch e {
+		case 0:
+			return "Not Working"
+		case 1:
+			return "Unmonitored"
+		case 2:
+			return "Healthy Operational"
+		case 3:
+			return "Healthy Test Mode"
+		case 4:
+			return "Test Mode"
+	default:
+		return fmt.Sprintf("%s(%d)", "StationHealthConst", int(e))
+	}
+}
+
+type SerialBitRateConst uint8
+const (
+	A25	SerialBitRateConst = 0
+	A50	SerialBitRateConst = 1
+	A100	SerialBitRateConst = 2
+	A200	SerialBitRateConst = 3
+	A300	SerialBitRateConst = 4
+	A600	SerialBitRateConst = 5
+	A1200	SerialBitRateConst = 6
+	A2400	SerialBitRateConst = 7
+	A4800	SerialBitRateConst = 8
+	A9600	SerialBitRateConst = 9
+	A19200	SerialBitRateConst = 10
+	A19200_2	SerialBitRateConst = 11
+	A38400	SerialBitRateConst = 12
+	A57600	SerialBitRateConst = 13
+)
+
+func (e SerialBitRateConst) GoString() string {return e.String() }
+func (e SerialBitRateConst) String() string {
+	switch e {
+		case 0:
+			return "A25"
+		case 1:
+			return "A50"
+		case 2:
+			return "A100"
+		case 3:
+			return "A200"
+		case 4:
+			return "A300"
+		case 5:
+			return "A600"
+		case 6:
+			return "A1200"
+		case 7:
+			return "A2400"
+		case 8:
+			return "A4800"
+		case 9:
+			return "A9600"
+		case 10:
+			return "A19200"
+		case 11:
+			return "A19200"
+		case 12:
+			return "A38400"
+		case 13:
+			return "A57600"
+	default:
+		return fmt.Sprintf("%s(%d)", "SerialBitRateConst", int(e))
+	}
+}
+
+type SerialDetectionModeConst uint8
+const (
+	AutoBitRate	SerialDetectionModeConst = 0
+	ManualBitRate	SerialDetectionModeConst = 1
+)
+
+func (e SerialDetectionModeConst) GoString() string {return e.String() }
+func (e SerialDetectionModeConst) String() string {
+	switch e {
+		case 0:
+			return "Auto bit rate"
+		case 1:
+			return "Manual bit rate"
+	default:
+		return fmt.Sprintf("%s(%d)", "SerialDetectionModeConst", int(e))
+	}
+}
+
+type DifferentialSourceConst uint8
+const (
+	Auto_6	DifferentialSourceConst = 0
+	Loran	DifferentialSourceConst = 1
+	MSKBeacon	DifferentialSourceConst = 2
+	FMSubcarrier	DifferentialSourceConst = 3
+	AIS_2	DifferentialSourceConst = 4
+	GroundBasedRadio	DifferentialSourceConst = 5
+	SBAS_2	DifferentialSourceConst = 6
+	Satellite	DifferentialSourceConst = 7
+)
+
+func (e DifferentialSourceConst) GoString() string {return e.String() }
+func (e DifferentialSourceConst) String() string {
+	switch e {
+		case 0:
+			return "Auto"
+		case 1:
+			return "Loran"
+		case 2:
+			return "MSK Beacon"
+		case 3:
+			return "FM Subcarrier"
+		case 4:
+			return "AIS"
+		case 5:
+			return "Ground based radio"
+		case 6:
+			return "SBAS"
+		case 7:
+			return "Satellite"
+	default:
+		return fmt.Sprintf("%s(%d)", "DifferentialSourceConst", int(e))
+	}
+}
+
+type DifferentialModeConst uint8
+const (
+	Manual_7	DifferentialModeConst = 0
+	AutoPower	DifferentialModeConst = 1
+	AutoRange	DifferentialModeConst = 2
+)
+
+func (e DifferentialModeConst) GoString() string {return e.String() }
+func (e DifferentialModeConst) String() string {
+	switch e {
+		case 0:
+			return "Manual"
+		case 1:
+			return "Auto Power"
+		case 2:
+			return "Auto Range"
+	default:
+		return fmt.Sprintf("%s(%d)", "DifferentialModeConst", int(e))
+	}
+}
+
 
 type DeviceFunctionConst uint16
 var DeviceFunctionConstMap = map[int]map[int]string{10: {130: "Diagnostic",
@@ -8402,42 +8558,6 @@ var unseenList = []PgnInfo{
 	{
 		PGN: 129545,
 		Description: "GNSS RAIM Output",
-		Fast: true,
-		ManId: 0,
-	},
-	{
-		PGN: 129546,
-		Description: "GNSS RAIM Settings",
-		Fast: false,
-		ManId: 0,
-	},
-	{
-		PGN: 129547,
-		Description: "GNSS Pseudorange Error Statistics",
-		Fast: true,
-		ManId: 0,
-	},
-	{
-		PGN: 129549,
-		Description: "DGNSS Corrections",
-		Fast: true,
-		ManId: 0,
-	},
-	{
-		PGN: 129550,
-		Description: "GNSS Differential Correction Receiver Interface",
-		Fast: true,
-		ManId: 0,
-	},
-	{
-		PGN: 129551,
-		Description: "GNSS Differential Correction Receiver Signal",
-		Fast: true,
-		ManId: 0,
-	},
-	{
-		PGN: 129556,
-		Description: "GLONASS Almanac Data",
 		Fast: true,
 		ManId: 0,
 	},
@@ -16926,6 +17046,538 @@ var pgnList = []PgnInfo{
 			Name: "Sats in View",
 			BitLength: 8,
 			BitOffset: 16,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		},
+	},
+	{
+		Id: "GnssRaimSettings",
+		PGN: 129546,
+		Description: "GNSS RAIM Settings",
+		Fast: false,
+		ManId: 0,
+		Decoder: DecodeGnssRaimSettings,
+		Fields: map[int]*FieldDescriptor{
+		1: { 
+			Name: "Radial Position Error Maximum Threshold",
+			BitLength: 16,
+			BitOffset: 0,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		2: { 
+			Name: "Probability of False Alarm",
+			BitLength: 8,
+			BitOffset: 16,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		3: { 
+			Name: "Probability of Missed Detection",
+			BitLength: 8,
+			BitOffset: 24,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		4: { 
+			Name: "Pseudorange Residual Filtering Time Constant",
+			BitLength: 16,
+			BitOffset: 32,
+			BitLengthVariable: false,
+			CanboatType: "TIME",
+			Resolution:1,
+			},
+		5: { 
+			Name: "Reserved",
+			BitLength: 16,
+			BitOffset: 48,
+			BitLengthVariable: false,
+			CanboatType: "RESERVED",
+			Resolution:1,
+			},
+		},
+	},
+	{
+		Id: "GnssPseudorangeErrorStatistics",
+		PGN: 129547,
+		Description: "GNSS Pseudorange Error Statistics",
+		Fast: true,
+		ManId: 0,
+		Decoder: DecodeGnssPseudorangeErrorStatistics,
+		Fields: map[int]*FieldDescriptor{
+		1: { 
+			Name: "SID",
+			BitLength: 8,
+			BitOffset: 0,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		2: { 
+			Name: "RMS Std Dev of Range Inputs",
+			BitLength: 16,
+			BitOffset: 8,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		3: { 
+			Name: "Std Dev of Major error ellipse",
+			BitLength: 16,
+			BitOffset: 24,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		4: { 
+			Name: "Std Dev of Minor error ellipse",
+			BitLength: 16,
+			BitOffset: 40,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		5: { 
+			Name: "Orientation of error ellipse",
+			BitLength: 16,
+			BitOffset: 56,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.0001,
+			},
+		6: { 
+			Name: "Std Dev Lat Error",
+			BitLength: 16,
+			BitOffset: 72,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		7: { 
+			Name: "Std Dev Lon Error",
+			BitLength: 16,
+			BitOffset: 88,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		8: { 
+			Name: "Std Dev Alt Error",
+			BitLength: 16,
+			BitOffset: 104,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		},
+	},
+	{
+		Id: "DgnssCorrections",
+		PGN: 129549,
+		Description: "DGNSS Corrections",
+		Fast: true,
+		ManId: 0,
+		Decoder: DecodeDgnssCorrections,
+		Fields: map[int]*FieldDescriptor{
+		1: { 
+			Name: "SID",
+			BitLength: 8,
+			BitOffset: 0,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		2: { 
+			Name: "Reference Station ID",
+			BitLength: 12,
+			BitOffset: 8,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		3: { 
+			Name: "Reference Station Type",
+			BitLength: 4,
+			BitOffset: 20,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		4: { 
+			Name: "Time of corrections",
+			BitLength: 16,
+			BitOffset: 24,
+			BitLengthVariable: false,
+			CanboatType: "TIME",
+			Resolution:0.001,
+			},
+		5: { 
+			Name: "Station Health",
+			BitLength: 4,
+			BitOffset: 40,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		6: { 
+			Name: "Reserved",
+			BitLength: 4,
+			BitOffset: 44,
+			BitLengthVariable: false,
+			CanboatType: "RESERVED",
+			Resolution:1,
+			},
+		7: { 
+			Name: "Satellite ID",
+			BitLength: 8,
+			BitOffset: 48,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		8: { 
+			Name: "PRC",
+			BitLength: 32,
+			BitOffset: 56,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.0001,
+			},
+		9: { 
+			Name: "RRC",
+			BitLength: 16,
+			BitOffset: 88,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.0001,
+			},
+		10: { 
+			Name: "UDRE",
+			BitLength: 16,
+			BitOffset: 104,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		11: { 
+			Name: "IOD",
+			BitLength: 8,
+			BitOffset: 120,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		},
+	},
+	{
+		Id: "GnssDifferentialCorrectionReceiverInterface",
+		PGN: 129550,
+		Description: "GNSS Differential Correction Receiver Interface",
+		Fast: false,
+		ManId: 0,
+		Decoder: DecodeGnssDifferentialCorrectionReceiverInterface,
+		Fields: map[int]*FieldDescriptor{
+		1: { 
+			Name: "Channel",
+			BitLength: 8,
+			BitOffset: 0,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		2: { 
+			Name: "Frequency",
+			BitLength: 32,
+			BitOffset: 8,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:10,
+			},
+		3: { 
+			Name: "Serial Interface Bit Rate",
+			BitLength: 5,
+			BitOffset: 40,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		4: { 
+			Name: "Serial Interface Detection Mode",
+			BitLength: 3,
+			BitOffset: 45,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		5: { 
+			Name: "Differential Source",
+			BitLength: 4,
+			BitOffset: 48,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		6: { 
+			Name: "Differential Operation Mode",
+			BitLength: 4,
+			BitOffset: 52,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		7: { 
+			Name: "Reserved",
+			BitLength: 8,
+			BitOffset: 56,
+			BitLengthVariable: false,
+			CanboatType: "RESERVED",
+			Resolution:1,
+			},
+		},
+	},
+	{
+		Id: "GnssDifferentialCorrectionReceiverSignal",
+		PGN: 129551,
+		Description: "GNSS Differential Correction Receiver Signal",
+		Fast: true,
+		ManId: 0,
+		Decoder: DecodeGnssDifferentialCorrectionReceiverSignal,
+		Fields: map[int]*FieldDescriptor{
+		1: { 
+			Name: "SID",
+			BitLength: 8,
+			BitOffset: 0,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		2: { 
+			Name: "Channel",
+			BitLength: 8,
+			BitOffset: 8,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		3: { 
+			Name: "Signal Strength",
+			BitLength: 32,
+			BitOffset: 16,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		4: { 
+			Name: "Signal SNR",
+			BitLength: 16,
+			BitOffset: 48,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:0.01,
+			},
+		5: { 
+			Name: "Frequency",
+			BitLength: 32,
+			BitOffset: 64,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:10,
+			},
+		6: { 
+			Name: "Station Type",
+			BitLength: 4,
+			BitOffset: 96,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		7: { 
+			Name: "Reference Station ID",
+			BitLength: 12,
+			BitOffset: 100,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		8: { 
+			Name: "Differential Signal Bit Rate",
+			BitLength: 5,
+			BitOffset: 112,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		9: { 
+			Name: "Differential Signal Detection Mode",
+			BitLength: 3,
+			BitOffset: 117,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		10: { 
+			Name: "Used as Correction Source",
+			BitLength: 2,
+			BitOffset: 120,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		11: { 
+			Name: "Reserved",
+			BitLength: 2,
+			BitOffset: 122,
+			BitLengthVariable: false,
+			CanboatType: "RESERVED",
+			Resolution:1,
+			},
+		12: { 
+			Name: "Differential Source",
+			BitLength: 4,
+			BitOffset: 124,
+			BitLengthVariable: false,
+			CanboatType: "LOOKUP",
+			Resolution:1,
+			},
+		13: { 
+			Name: "Time since Last Sat Differential Sync",
+			BitLength: 16,
+			BitOffset: 128,
+			BitLengthVariable: false,
+			CanboatType: "TIME",
+			Resolution:0.01,
+			},
+		14: { 
+			Name: "Satellite Service ID No.",
+			BitLength: 16,
+			BitOffset: 144,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		},
+	},
+	{
+		Id: "GlonassAlmanacData",
+		PGN: 129556,
+		Description: "GLONASS Almanac Data",
+		Fast: true,
+		ManId: 0,
+		Decoder: DecodeGlonassAlmanacData,
+		Fields: map[int]*FieldDescriptor{
+		1: { 
+			Name: "PRN",
+			BitLength: 8,
+			BitOffset: 0,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		2: { 
+			Name: "NA",
+			BitLength: 16,
+			BitOffset: 8,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		3: { 
+			Name: "Reserved",
+			BitLength: 2,
+			BitOffset: 24,
+			BitLengthVariable: false,
+			CanboatType: "RESERVED",
+			Resolution:1,
+			},
+		4: { 
+			Name: "CnA",
+			BitLength: 1,
+			BitOffset: 26,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		5: { 
+			Name: "HnA",
+			BitLength: 5,
+			BitOffset: 27,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		6: { 
+			Name: "(epsilon)nA",
+			BitLength: 16,
+			BitOffset: 32,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		7: { 
+			Name: "(deltaTnA)DOT",
+			BitLength: 8,
+			BitOffset: 48,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		8: { 
+			Name: "(omega)nA",
+			BitLength: 16,
+			BitOffset: 56,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		9: { 
+			Name: "(delta)TnA",
+			BitLength: 24,
+			BitOffset: 72,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		10: { 
+			Name: "tnA",
+			BitLength: 24,
+			BitOffset: 96,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		11: { 
+			Name: "(lambda)nA",
+			BitLength: 24,
+			BitOffset: 120,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		12: { 
+			Name: "(delta)inA",
+			BitLength: 24,
+			BitOffset: 144,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		13: { 
+			Name: "(tau)cA",
+			BitLength: 28,
+			BitOffset: 168,
+			BitLengthVariable: false,
+			CanboatType: "NUMBER",
+			Resolution:1,
+			},
+		14: { 
+			Name: "(tau)nA",
+			BitLength: 12,
+			BitOffset: 196,
 			BitLengthVariable: false,
 			CanboatType: "NUMBER",
 			Resolution:1,
@@ -34284,6 +34936,946 @@ func DecodeGnssSatsInView(Info MessageInfo, stream *DataStream) (any, error) {
 			if i == int(repeat1Count) {
 				break
 			} 
+		} 
+	}	
+	return val, nil
+}
+type GnssRaimSettings struct {
+	Info MessageInfo
+	RadialPositionErrorMaximumThreshold *units.Distance
+	ProbabilityOfFalseAlarm *int8
+	ProbabilityOfMissedDetection *int8
+	PseudorangeResidualFilteringTimeConstant *uint16
+}
+func (p GnssRaimSettings ) Marshal() ([]byte, error) {
+	var pre, post []byte
+	pre = []byte("{ \"GnssRaimSettings\":")
+	post = []byte("}")
+	ret, err :=  json.Marshal(p)
+	if err != nil {
+		return nil, err
+		}
+	pre = append(pre, ret...)
+	pre = append(pre, post...)
+	 return pre, nil
+}
+func (p GnssRaimSettings ) Encode(stream *DataStream) (*MessageInfo, error) {
+	var err error
+	err = stream.writeUnit(p.RadialPositionErrorMaximumThreshold, 16, 0.010000, 0, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeInt8(p.ProbabilityOfFalseAlarm, 8, 16)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeInt8(p.ProbabilityOfMissedDetection, 8, 24)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.PseudorangeResidualFilteringTimeConstant, 16, 32)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeReserved(16, 48)
+	if err != nil {
+		return nil, err
+	}
+	return &p.Info, err
+}
+func DecodeGnssRaimSettings(Info MessageInfo, stream *DataStream) (any, error) {
+	var val GnssRaimSettings
+	val.Info = Info
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssRaimSettings-RadialPositionErrorMaximumThreshold: %w", err)
+	} else {
+		val.RadialPositionErrorMaximumThreshold = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssRaimSettings-ProbabilityOfFalseAlarm: %w", err)
+	} else {
+		val.ProbabilityOfFalseAlarm = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssRaimSettings-ProbabilityOfMissedDetection: %w", err)
+	} else {
+		val.ProbabilityOfMissedDetection = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(16); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssRaimSettings-PseudorangeResidualFilteringTimeConstant: %w", err)
+	} else {
+		val.PseudorangeResidualFilteringTimeConstant = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	stream.skipBits(16)
+	if stream.isEOF() {
+		return val, nil
+		}	
+	return val, nil
+}
+type GnssPseudorangeErrorStatistics struct {
+	Info MessageInfo
+	Sid *uint8
+	RmsStdDevOfRangeInputs *units.Distance
+	StdDevOfMajorErrorEllipse *units.Distance
+	StdDevOfMinorErrorEllipse *units.Distance
+	OrientationOfErrorEllipse *float32
+	StdDevLatError *units.Distance
+	StdDevLonError *units.Distance
+	StdDevAltError *units.Distance
+}
+func (p GnssPseudorangeErrorStatistics ) Marshal() ([]byte, error) {
+	var pre, post []byte
+	pre = []byte("{ \"GnssPseudorangeErrorStatistics\":")
+	post = []byte("}")
+	ret, err :=  json.Marshal(p)
+	if err != nil {
+		return nil, err
+		}
+	pre = append(pre, ret...)
+	pre = append(pre, post...)
+	 return pre, nil
+}
+func (p GnssPseudorangeErrorStatistics ) Encode(stream *DataStream) (*MessageInfo, error) {
+	var err error
+	err = stream.writeUint8(p.Sid, 8, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.RmsStdDevOfRangeInputs, 16, 0.010000, 8, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.StdDevOfMajorErrorEllipse, 16, 0.010000, 24, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.StdDevOfMinorErrorEllipse, 16, 0.010000, 40, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnsignedResolution32(p.OrientationOfErrorEllipse, 16, 0.0001, 56, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.StdDevLatError, 16, 0.010000, 72, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.StdDevLonError, 16, 0.010000, 88, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.StdDevAltError, 16, 0.010000, 104, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	return &p.Info, err
+}
+func DecodeGnssPseudorangeErrorStatistics(Info MessageInfo, stream *DataStream) (any, error) {
+	var val GnssPseudorangeErrorStatistics
+	val.Info = Info
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-Sid: %w", err)
+	} else {
+		val.Sid = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-RmsStdDevOfRangeInputs: %w", err)
+	} else {
+		val.RmsStdDevOfRangeInputs = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-StdDevOfMajorErrorEllipse: %w", err)
+	} else {
+		val.StdDevOfMajorErrorEllipse = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-StdDevOfMinorErrorEllipse: %w", err)
+	} else {
+		val.StdDevOfMinorErrorEllipse = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUnsignedResolution(16, 0.0001, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-OrientationOfErrorEllipse: %w", err)
+	} else {
+		val.OrientationOfErrorEllipse = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-StdDevLatError: %w", err)
+	} else {
+		val.StdDevLatError = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-StdDevLonError: %w", err)
+	} else {
+		val.StdDevLonError = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssPseudorangeErrorStatistics-StdDevAltError: %w", err)
+	} else {
+		val.StdDevAltError = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}	
+	return val, nil
+}
+type DgnssCorrections struct {
+	Info MessageInfo
+	Sid *uint8
+	ReferenceStationId *uint16
+	ReferenceStationType GnsConst
+	TimeOfCorrections *float32
+	StationHealth StationHealthConst
+	SatelliteId *uint8
+	Prc *units.Distance
+	Rrc *units.Velocity
+	Udre *units.Distance
+	Iod *uint8
+}
+func (p DgnssCorrections ) Marshal() ([]byte, error) {
+	var pre, post []byte
+	pre = []byte("{ \"DgnssCorrections\":")
+	post = []byte("}")
+	ret, err :=  json.Marshal(p)
+	if err != nil {
+		return nil, err
+		}
+	pre = append(pre, ret...)
+	pre = append(pre, post...)
+	 return pre, nil
+}
+func (p DgnssCorrections ) Encode(stream *DataStream) (*MessageInfo, error) {
+	var err error
+	err = stream.writeUint8(p.Sid, 8, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.ReferenceStationId, 12, 8)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.ReferenceStationType), 4, 20)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnsignedResolution32(p.TimeOfCorrections, 16, 0.001, 24, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.StationHealth), 4, 40)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeReserved(4, 44)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint8(p.SatelliteId, 8, 48)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.Prc, 32, 0.000100, 56, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.Rrc, 16, 0.000100, 88, 0, true)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnit(p.Udre, 16, 0.010000, 104, 0, false)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint8(p.Iod, 8, 120)
+	if err != nil {
+		return nil, err
+	}
+	return &p.Info, err
+}
+func DecodeDgnssCorrections(Info MessageInfo, stream *DataStream) (any, error) {
+	var val DgnssCorrections
+	val.Info = Info
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-Sid: %w", err)
+	} else {
+		val.Sid = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(12); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-ReferenceStationId: %w", err)
+	} else {
+		val.ReferenceStationId = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(4); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-ReferenceStationType: %w", err)
+	} else {
+		val.ReferenceStationType = GnsConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUnsignedResolution(16, 0.001, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-TimeOfCorrections: %w", err)
+	} else {
+		val.TimeOfCorrections = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(4); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-StationHealth: %w", err)
+	} else {
+		val.StationHealth = StationHealthConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	stream.skipBits(4)
+	if stream.isEOF() {
+		return val, nil
+		}
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-SatelliteId: %w", err)
+	} else {
+		val.SatelliteId = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(32, 0.0001, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-Prc: %w", err)
+	} else {
+		val.Prc = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.0001, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-Rrc: %w", err)
+	} else {
+		val.Rrc = nullableUnit(units.MetersPerSecond, v, units.NewVelocity)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUnsignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-Udre: %w", err)
+	} else {
+		val.Udre = nullableUnit(units.Meter, v, units.NewDistance)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for DgnssCorrections-Iod: %w", err)
+	} else {
+		val.Iod = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}	
+	return val, nil
+}
+type GnssDifferentialCorrectionReceiverInterface struct {
+	Info MessageInfo
+	Channel *uint8
+	Frequency *float32
+	SerialInterfaceBitRate SerialBitRateConst
+	SerialInterfaceDetectionMode SerialDetectionModeConst
+	DifferentialSource DifferentialSourceConst
+	DifferentialOperationMode DifferentialModeConst
+}
+func (p GnssDifferentialCorrectionReceiverInterface ) Marshal() ([]byte, error) {
+	var pre, post []byte
+	pre = []byte("{ \"GnssDifferentialCorrectionReceiverInterface\":")
+	post = []byte("}")
+	ret, err :=  json.Marshal(p)
+	if err != nil {
+		return nil, err
+		}
+	pre = append(pre, ret...)
+	pre = append(pre, post...)
+	 return pre, nil
+}
+func (p GnssDifferentialCorrectionReceiverInterface ) Encode(stream *DataStream) (*MessageInfo, error) {
+	var err error
+	err = stream.writeUint8(p.Channel, 8, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnsignedResolution32(p.Frequency, 32, 10, 8, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.SerialInterfaceBitRate), 5, 40)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.SerialInterfaceDetectionMode), 3, 45)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.DifferentialSource), 4, 48)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.DifferentialOperationMode), 4, 52)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeReserved(8, 56)
+	if err != nil {
+		return nil, err
+	}
+	return &p.Info, err
+}
+func DecodeGnssDifferentialCorrectionReceiverInterface(Info MessageInfo, stream *DataStream) (any, error) {
+	var val GnssDifferentialCorrectionReceiverInterface
+	val.Info = Info
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverInterface-Channel: %w", err)
+	} else {
+		val.Channel = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUnsignedResolution(32, 10, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverInterface-Frequency: %w", err)
+	} else {
+		val.Frequency = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(5); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverInterface-SerialInterfaceBitRate: %w", err)
+	} else {
+		val.SerialInterfaceBitRate = SerialBitRateConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(3); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverInterface-SerialInterfaceDetectionMode: %w", err)
+	} else {
+		val.SerialInterfaceDetectionMode = SerialDetectionModeConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(4); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverInterface-DifferentialSource: %w", err)
+	} else {
+		val.DifferentialSource = DifferentialSourceConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(4); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverInterface-DifferentialOperationMode: %w", err)
+	} else {
+		val.DifferentialOperationMode = DifferentialModeConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	stream.skipBits(8)
+	if stream.isEOF() {
+		return val, nil
+		}	
+	return val, nil
+}
+type GnssDifferentialCorrectionReceiverSignal struct {
+	Info MessageInfo
+	Sid *uint8
+	Channel *uint8
+	SignalStrength *float32
+	SignalSnr *float32
+	Frequency *float32
+	StationType GnsConst
+	ReferenceStationId *uint16
+	DifferentialSignalBitRate SerialBitRateConst
+	DifferentialSignalDetectionMode SerialDetectionModeConst
+	UsedAsCorrectionSource YesNoConst
+	DifferentialSource DifferentialSourceConst
+	TimeSinceLastSatDifferentialSync *float32
+	SatelliteServiceIdNo *uint16
+}
+func (p GnssDifferentialCorrectionReceiverSignal ) Marshal() ([]byte, error) {
+	var pre, post []byte
+	pre = []byte("{ \"GnssDifferentialCorrectionReceiverSignal\":")
+	post = []byte("}")
+	ret, err :=  json.Marshal(p)
+	if err != nil {
+		return nil, err
+		}
+	pre = append(pre, ret...)
+	pre = append(pre, post...)
+	 return pre, nil
+}
+func (p GnssDifferentialCorrectionReceiverSignal ) Encode(stream *DataStream) (*MessageInfo, error) {
+	var err error
+	err = stream.writeUint8(p.Sid, 8, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint8(p.Channel, 8, 8)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeSignedResolution32(p.SignalStrength, 32, 0.01, 16, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeSignedResolution32(p.SignalSnr, 16, 0.01, 48, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnsignedResolution32(p.Frequency, 32, 10, 64, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.StationType), 4, 96)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.ReferenceStationId, 12, 100)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.DifferentialSignalBitRate), 5, 112)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.DifferentialSignalDetectionMode), 3, 117)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.UsedAsCorrectionSource), 2, 120)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeReserved(2, 122)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.putNumberRaw(uint64(p.DifferentialSource), 4, 124)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUnsignedResolution32(p.TimeSinceLastSatDifferentialSync, 16, 0.01, 128, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.SatelliteServiceIdNo, 16, 144)
+	if err != nil {
+		return nil, err
+	}
+	return &p.Info, err
+}
+func DecodeGnssDifferentialCorrectionReceiverSignal(Info MessageInfo, stream *DataStream) (any, error) {
+	var val GnssDifferentialCorrectionReceiverSignal
+	val.Info = Info
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-Sid: %w", err)
+	} else {
+		val.Sid = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-Channel: %w", err)
+	} else {
+		val.Channel = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(32, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-SignalStrength: %w", err)
+	} else {
+		val.SignalStrength = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readSignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-SignalSnr: %w", err)
+	} else {
+		val.SignalSnr = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUnsignedResolution(32, 10, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-Frequency: %w", err)
+	} else {
+		val.Frequency = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(4); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-StationType: %w", err)
+	} else {
+		val.StationType = GnsConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(12); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-ReferenceStationId: %w", err)
+	} else {
+		val.ReferenceStationId = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(5); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-DifferentialSignalBitRate: %w", err)
+	} else {
+		val.DifferentialSignalBitRate = SerialBitRateConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(3); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-DifferentialSignalDetectionMode: %w", err)
+	} else {
+		val.DifferentialSignalDetectionMode = SerialDetectionModeConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readLookupField(2); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-UsedAsCorrectionSource: %w", err)
+	} else {
+		val.UsedAsCorrectionSource = YesNoConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	stream.skipBits(2)
+	if stream.isEOF() {
+		return val, nil
+		}
+	if v, err := stream.readLookupField(4); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-DifferentialSource: %w", err)
+	} else {
+		val.DifferentialSource = DifferentialSourceConst(v)
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUnsignedResolution(16, 0.01, 0); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-TimeSinceLastSatDifferentialSync: %w", err)
+	} else {
+		val.TimeSinceLastSatDifferentialSync = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(16); err != nil {
+		return nil, fmt.Errorf("parse failed for GnssDifferentialCorrectionReceiverSignal-SatelliteServiceIdNo: %w", err)
+	} else {
+		val.SatelliteServiceIdNo = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}	
+	return val, nil
+}
+type GlonassAlmanacData struct {
+	Info MessageInfo
+	Prn *uint8
+	Na *uint16
+	Cna *uint8
+	Hna *uint8
+	EpsilonNa *uint16
+	DeltatnaDot *uint8
+	OmegaNa *uint16
+	DeltaTna *uint32
+	Tna *uint32
+	LambdaNa *uint32
+	DeltaIna *uint32
+	TauCa *uint32
+	TauNa *uint16
+}
+func (p GlonassAlmanacData ) Marshal() ([]byte, error) {
+	var pre, post []byte
+	pre = []byte("{ \"GlonassAlmanacData\":")
+	post = []byte("}")
+	ret, err :=  json.Marshal(p)
+	if err != nil {
+		return nil, err
+		}
+	pre = append(pre, ret...)
+	pre = append(pre, post...)
+	 return pre, nil
+}
+func (p GlonassAlmanacData ) Encode(stream *DataStream) (*MessageInfo, error) {
+	var err error
+	err = stream.writeUint8(p.Prn, 8, 0)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.Na, 16, 8)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeReserved(2, 24)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint8(p.Cna, 1, 26)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint8(p.Hna, 5, 27)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.EpsilonNa, 16, 32)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint8(p.DeltatnaDot, 8, 48)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.OmegaNa, 16, 56)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint32(p.DeltaTna, 24, 72)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint32(p.Tna, 24, 96)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint32(p.LambdaNa, 24, 120)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint32(p.DeltaIna, 24, 144)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint32(p.TauCa, 28, 168)
+	if err != nil {
+		return nil, err
+	}
+	err = stream.writeUint16(p.TauNa, 12, 196)
+	if err != nil {
+		return nil, err
+	}
+	return &p.Info, err
+}
+func DecodeGlonassAlmanacData(Info MessageInfo, stream *DataStream) (any, error) {
+	var val GlonassAlmanacData
+	val.Info = Info
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-Prn: %w", err)
+	} else {
+		val.Prn = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(16); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-Na: %w", err)
+	} else {
+		val.Na = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	stream.skipBits(2)
+	if stream.isEOF() {
+		return val, nil
+		}
+	if v, err := stream.readUInt8(1); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-Cna: %w", err)
+	} else {
+		val.Cna = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt8(5); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-Hna: %w", err)
+	} else {
+		val.Hna = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(16); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-EpsilonNa: %w", err)
+	} else {
+		val.EpsilonNa = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt8(8); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-DeltatnaDot: %w", err)
+	} else {
+		val.DeltatnaDot = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(16); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-OmegaNa: %w", err)
+	} else {
+		val.OmegaNa = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt32(24); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-DeltaTna: %w", err)
+	} else {
+		val.DeltaTna = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt32(24); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-Tna: %w", err)
+	} else {
+		val.Tna = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt32(24); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-LambdaNa: %w", err)
+	} else {
+		val.LambdaNa = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt32(24); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-DeltaIna: %w", err)
+	} else {
+		val.DeltaIna = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt32(28); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-TauCa: %w", err)
+	} else {
+		val.TauCa = v
+
+		if stream.isEOF() {
+			return val, nil
+		} 
+	}
+	if v, err := stream.readUInt16(12); err != nil {
+		return nil, fmt.Errorf("parse failed for GlonassAlmanacData-TauNa: %w", err)
+	} else {
+		val.TauNa = v
+
+		if stream.isEOF() {
+			return val, nil
 		} 
 	}	
 	return val, nil

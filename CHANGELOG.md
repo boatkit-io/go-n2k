@@ -2,8 +2,23 @@
 
 This document will be updated whenever changes are made to the main branch of this project.
 
-### 2022-12-01
-Initial restructuring of the package as we move it from private to public.
+### 2025-01-03
+Release v0.0.3
+- Added ability to write PGNs
+- Reordered change log to be in reverse chronological order
+- Switched to using mise for building the project
+- Added debug and release builds to mise.toml
+
+### 2023-10-07
+Release v0.0.2
+Moved from Pipeline constructed from channels to a much simpler model connecting each stage
+through function variables.
+
+### 2023-10-05
+Release v0.0.1
+
+- Switched back to Canboat's canboat.json.
+
 
 ### 2023-09-29
 - Preliminary support for variants of PGN 126208 that include a reference PGN and repeating pairs of the index to a field in the reference PGN and its value. To determine the length of the value requires looking up the reference PGN, potentially its Manufacturer (to deal with variants of proprietary PGNs), and the length of the specified field's value.  It would be possible to use reflection and return the value in an appropriate golang type, but for now the values are returned in a []uint8.
@@ -13,15 +28,9 @@ Initial restructuring of the package as we move it from private to public.
 - Canboat PGN definitions without samples (that is, no logs including the PGN/variant have been submitted to Canboat) are tracked separately--when they're found in logs the samples should be submitted to the project.
 - Imports canboat.json from an interim version forked on Boatkit while we wait for the project to address issues related to values with lengths not known in the PGN definition.
 
-### 2023-10-05
-Release v0.0.1
+### 2022-12-01
+Initial restructuring of the package as we move it from private to public.
 
-- Switched back to Canboat's canboat.json.
-
-### 2023-10-07
-Release v0.0.2
-Moved from Pipeline constructed from channels to a much simpler model connecting each stage
-through function variables.
 
 
 

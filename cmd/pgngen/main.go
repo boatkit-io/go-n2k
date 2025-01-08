@@ -275,8 +275,7 @@ func (conv *canboatConverter) write() {
 			PGNDoc   any
 			ForDebug bool
 		}{
-			PGNDoc:   conv,
-			ForDebug: false,
+			PGNDoc: conv,
 		}
 
 		if err := t.Execute(f, templateData); err != nil {

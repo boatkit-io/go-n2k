@@ -269,6 +269,10 @@ func (s *DataStream) readBinaryData(bitLength uint16) ([]uint8, error) {
 		return nil, fmt.Errorf("binary data must be aligned on byte boundary")
 	}
 	numBytes := uint16(math.Ceil(float64(bitLength) / 8))
+	bytesRemaining := len(s.data) - int(s.byteOffset)
+	if bytesRemaining < int(numBytes) {
+		return nil, fmt.Errorf("not enough bytes remaining to read %d bits", bitLength)
+	}
 	oddBits := bitLength & 0x7
 	arr := make([]uint8, numBytes)
 
