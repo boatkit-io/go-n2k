@@ -40,4 +40,4 @@ func TestPgn127501Write(t *testing.T) {
 	assert.IsType(t, pgn.BinarySwitchBankStatus{}, ret)
 }
 
-// TestRawToDataStream was removed as redunant to more comprehensive testing in tests/integration/pgn_serialization_test.go
+// TestRawToDataStream was removed as redundant to more comprehensive testing in tests/integration/pgn_serialization_test.go

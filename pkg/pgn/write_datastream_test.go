@@ -546,7 +546,7 @@ func TestWriteInt16(t *testing.T) {
 func TestWriteUnit(t *testing.T) {
 	tests := []struct {
 		name       string
-		value      units.Units
+		value      any
 		length     uint16
 		resolution float32
 		bitOffset  uint16

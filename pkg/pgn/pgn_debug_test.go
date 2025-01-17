@@ -1,5 +1,4 @@
-//go:build integration
-// +build integration
+//go:build pgngen_debug
 
 package pgn
 
@@ -27,12 +26,24 @@ func calcMax(field *FieldDescriptor) uint64 {
 
 // calcNumericValue is a generic helper function that handles numeric value calculation
 func calcNumericValue[T constraints.Integer | constraints.Float](field *FieldDescriptor, testType int) T {
+	if field.Id == "SignalSnr" {
+		switch testType {
+		case TestTypeRandom:
+			// Generate value within range
+			val := rand.Float64()*(field.RangeMax-field.RangeMin) + field.RangeMin
+			// Quantize to resolution
+			val = math.Round(val/float64(field.Resolution)) * float64(field.Resolution)
+			return T(val)
+		}
+	}
 	switch testType {
 	case TestTypeZero:
 		return 0
 	case TestTypeMin:
 		if field.Offset != 0 {
 			return T(field.RangeMin - float64(field.Offset))
+		} else if field.DomainMin != 0 {
+			return T(field.DomainMin)
 		}
 		return T(field.RangeMin)
 	case TestTypeMax:
@@ -40,7 +51,11 @@ func calcNumericValue[T constraints.Integer | constraints.Float](field *FieldDes
 		if field.Offset != 0 {
 			val = float64(calcMax(field))
 		} else {
-			val = field.RangeMax
+			if field.DomainMax != 0 {
+				val = field.DomainMax
+			} else {
+				val = field.RangeMax
+			}
 		}
 
 		// For 32-bit unit types, ensure we don't exceed their range
@@ -61,10 +76,22 @@ func calcNumericValue[T constraints.Integer | constraints.Float](field *FieldDes
 	case TestTypeRandom:
 		// Check if T is a floating point type using reflect
 		if reflect.TypeOf(T(0)).Kind() == reflect.Float64 || reflect.TypeOf(T(0)).Kind() == reflect.Float32 {
-			max := calcMax(field)
-			val := rand.Float64()*(float64(max)-field.RangeMin) + field.RangeMin
+			var max, min float64
+			if field.DomainMin != 0 || field.DomainMax != 0 {
+				max = field.DomainMax
+				min = field.DomainMin
+			} else {
+				max = float64(calcMax(field))
+				min = field.RangeMin
+			}
+			val := rand.Float64()*(max-min) + min
 
-			// Apply the same 32-bit and resolution handling
+			// Apply resolution quantization for any non-unity resolution
+			if field.Resolution != 1 && field.Resolution != 1.0 {
+				val = math.Round(val/float64(field.Resolution)) * float64(field.Resolution)
+			}
+
+			// Apply the same 32-bit handling
 			if reflect.TypeOf(T(0)).Bits() == 32 {
 				if val > float64(math.MaxInt32) {
 					val = float64(math.MaxInt32)
@@ -72,16 +99,19 @@ func calcNumericValue[T constraints.Integer | constraints.Float](field *FieldDes
 				if val < float64(math.MinInt32) {
 					val = float64(math.MinInt32)
 				}
-				if field.Resolution > 1 {
-					val = math.Round(val/float64(field.Resolution)) * float64(field.Resolution)
-				}
 			}
 			return T(val)
 		}
 
 		// For integer types, handle large ranges safely
-		min := field.RangeMin
-		max := field.RangeMax
+		var min, max float64
+		if field.DomainMin != 0 || field.DomainMax != 0 {
+			min = field.DomainMin
+			max = field.DomainMax
+		} else {
+			min = field.RangeMin
+			max = field.RangeMax
+		}
 
 		if max > float64(math.MaxInt) {
 			// For large ranges, use Float64 and convert to integer
@@ -90,7 +120,7 @@ func calcNumericValue[T constraints.Integer | constraints.Float](field *FieldDes
 			return T(randomFloat + min)
 		}
 
-		return T(rand.Intn(int(max-min+1)) + int(min))
+		return T((rand.Intn(int(max-min+1)) + int(min)) >> 3 << 3)
 	}
 	return 0
 }
@@ -208,7 +238,7 @@ func genBytes(numBytes uint16, testType int, field *FieldDescriptor) []uint8 {
 	return []uint8{}
 }
 
-// First add this new function above setRepeatingState
+// initializeElement sets the value of the field to the testType
 func initializeElement(elem reflect.Value, testType int) {
 	if !elem.IsValid() || elem.Kind() != reflect.Ptr {
 		return
@@ -315,6 +345,7 @@ func setRepeatingState(o reflect.Value, testType int) {
 
 // setState sets the state of the object o to the testType
 func setState(o reflect.Value, n PgnInfo, testType int) {
+	nextOffset := uint16(0)
 	// first check if fields named Repeating1 or Repeating2 exist
 	repeating1 := o.Elem().FieldByName("Repeating1")
 	repeating2 := o.Elem().FieldByName("Repeating2")
@@ -326,9 +357,12 @@ func setState(o reflect.Value, n PgnInfo, testType int) {
 		//		repeating2.Set(reflect.MakeSlice(repeating2.Type(), 1, 1))
 		setRepeatingState(repeating2, testType)
 	}
-	for _, field := range n.Fields {
+	for i := 1; i <= len(n.Fields); i++ { // n.Fields uses field.Order, which starts at 1
+		field := n.Fields[i]
 		fieldValue := o.Elem().FieldByName(field.Id)
-
+		if field.BitOffset != 0 {
+			nextOffset = field.BitOffset + field.BitLength
+		}
 		// Handle Match value for uint8/uint16, pointer and non-pointer
 		if field.Match != -1 {
 			if fieldValue.Type().Kind() == reflect.Ptr {
@@ -386,6 +420,18 @@ func setState(o reflect.Value, n PgnInfo, testType int) {
 			numBytes := uint16(0)
 			if !field.BitLengthVariable {
 				numBytes = uint16(math.Ceil(float64(field.BitLength) / 8))
+			} else { // bitLengthVariable is true, we need to calculate max remaining bytes
+				// if there's a field named NumberOfBitsInBinaryDataField, use it to calculate numBytes
+				numberOfBitsInBinaryDataField := o.Elem().FieldByName("NumberOfBitsInBinaryDataField")
+				if numberOfBitsInBinaryDataField.IsValid() {
+					if numberOfBitsInBinaryDataField.Kind() == reflect.Ptr {
+						numBytes = uint16(numberOfBitsInBinaryDataField.Elem().Uint()) / 8
+					} else {
+						numBytes = uint16(numberOfBitsInBinaryDataField.Uint()) / 8
+					}
+				} else {
+					numBytes = MaxPGNLength - (nextOffset / 8)
+				}
 			}
 			o.Elem().FieldByName(field.Id).Set(reflect.ValueOf(genBytes(numBytes, testType, field)))
 		default:
@@ -407,7 +453,7 @@ func TestPgns(t *testing.T) {
 	for i := range pgnList {
 		for _, testType := range []int{TestTypeZero, TestTypeMin, TestTypeMax, TestTypeRandom} {
 			next := pgnList[i]
-			/* if next.Id != "ThrusterMotorStatus" {
+			/* if next.Id != "AisAddressedBinaryMessage" {
 				continue
 			} */
 			if strings.HasPrefix(next.Id, "Nmea") {
@@ -426,6 +472,7 @@ func TestPgns(t *testing.T) {
 				mInfo = info
 				assert.NoError(t, err)
 				if err != nil {
+					t.Errorf("PGN %s testType %d ", next.Id, testType)
 					continue
 				}
 			}
@@ -446,6 +493,9 @@ func TestPgns(t *testing.T) {
 			}
 
 			diff := cmp.Diff(original.Elem().Interface(), decoded, opts)
+			if diff != "" {
+				t.Errorf("PGN %s testType %d ", next.Id, testType)
+			}
 			assert.Empty(t, diff) // diff will be empty if the structs are equal
 		}
 	}

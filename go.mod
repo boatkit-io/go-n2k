@@ -6,7 +6,7 @@ toolchain go1.22.6
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/boatkit-io/tugboat v0.8.3
+	github.com/boatkit-io/tugboat v0.8.5
 	github.com/brutella/can v0.0.2
 	github.com/google/go-cmp v0.6.0
 	github.com/magefile/mage v1.15.0
@@ -14,7 +14,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.14.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
+	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	golang.org/x/text v0.16.0
 )
 
@@ -44,5 +44,3 @@ require (
 	golang.org/x/term v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/boatkit-io/tugboat v0.8.3 => /home/russd/dev/tugboat/

@@ -63,6 +63,8 @@ type FieldDescriptor struct {
 	GolangType        string
 	RangeMax          float64
 	RangeMin          float64
+	DomainMin         float64
+	DomainMax         float64
 	Signed            bool
 	Match             int
 	Offset            int64
@@ -202,6 +204,8 @@ var pgnList = []PgnInfo{
 			Signed: {{ .Signed }},
 			RangeMin: {{ .RangeMin }},
 			RangeMax: {{ .RangeMax }},
+			DomainMin: {{ .DomainMin }},
+			DomainMax: {{ .DomainMax }},
 			{{- if .Match }} 
 			Match: {{ .Match }},
 			{{- else }}

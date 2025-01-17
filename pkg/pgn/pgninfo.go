@@ -65,11 +65,12 @@ func GetProprietaryInfo(data []uint8) (ManufacturerCodeConst, IndustryCodeConst,
 	var man ManufacturerCodeConst
 	var ind IndustryCodeConst
 	var err error
-	if v, err := stream.readLookupField(11); err == nil {
+	var v uint64
+	if v, err = stream.readLookupField(11); err == nil {
 		man = ManufacturerCodeConst(v)
 	}
 	_ = stream.skipBits(2)
-	if v, err := stream.readLookupField(3); err == nil {
+	if v, err = stream.readLookupField(3); err == nil {
 		ind = IndustryCodeConst(v)
 	}
 	return man, ind, err

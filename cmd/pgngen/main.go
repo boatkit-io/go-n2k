@@ -30,6 +30,9 @@ import (
 // resolution64BitCutoff is a heuristic for a cutoff to jump from float32 -> float64 for uint32->float conversion
 const resolution64BitCutoff = 0.0000001
 
+// MaxPGNLength is the maximum length of a PGN in bytes
+const MaxPGNLength = 223 // 31*7 + 6
+
 // log provides standard logging capability to the program.
 var log = logrus.StandardLogger()
 
@@ -173,8 +176,10 @@ type PGNField struct {
 	FieldType                string
 	Resolution               *float32
 	Offset                   int64
-	RangeMin                 float32
-	RangeMax                 float32
+	RangeMin                 float64
+	RangeMax                 float64
+	DomainMin                float64
+	DomainMax                float64
 	Match                    *int
 	Signed                   bool
 	Unit                     string
@@ -297,7 +302,7 @@ func (conv *canboatConverter) fixIDs() {
 			panic("PGN ID not unique: " + conv.PGNs[i].Id)
 		}
 		for j := range conv.PGNs[i].Fields {
-			fixupField(&conv.PGNs[i].Fields[j], *fieldDeDuper)
+			fixField(&conv.PGNs[i].Fields[j], *fieldDeDuper)
 			// For variable length fields, the length of such a field is passed
 			// in another field. When we find such a field we keep the value in
 			// the PGN so it can be used by the decoder for that PGN.
@@ -308,8 +313,24 @@ func (conv *canboatConverter) fixIDs() {
 	}
 }
 
-// fixupField capitializes Id's first char, assures field name is unique, and forces lookup names.
-func fixupField(field *PGNField, dedup DeDuper) {
+// fixDomainLimits adds domain limits to fields that have them
+func fixDomainLimits(field *PGNField) {
+	// For specific fields, add domain-specific validation
+	switch field.Id {
+	case "Latitude":
+		field.DomainMin = float64(-90.0)
+		field.DomainMax = float64(90.0)
+	case "Longitude":
+		field.DomainMin = float64(-180.0)
+		field.DomainMax = float64(180.0)
+	case "NumberOfBitsInBinaryDataField":
+		field.DomainMin = float64(0.0)
+		field.DomainMax = float64(MaxPGNLength*8) - float64(field.BitOffset+field.BitLength) // following binary data field starts at bitOffset+bitLength
+	}
+}
+
+// fixField capitializes Id's first char, assures field name is unique, and forces lookup names.
+func fixField(field *PGNField, dedup DeDuper) {
 	field.Id = capitalizeFirstChar(field.Id)
 	if len(field.FieldTypeLookupName) > 0 {
 		convertToConst(&field.FieldTypeLookupName)
@@ -329,6 +350,7 @@ func fixupField(field *PGNField, dedup DeDuper) {
 	if len(field.IndirectLookupName) > 0 {
 		convertToConst(&field.IndirectLookupName)
 	}
+	fixDomainLimits(field)
 }
 
 // fixRepeating identifies the range of repeating fields and extracts them to their own slice(s).

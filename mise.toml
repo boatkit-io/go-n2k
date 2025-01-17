@@ -10,21 +10,37 @@ golangci-lint = "1.60"
 [tasks.build]
 env = { "CGO_ENABLED" = "0" }
 description = "Build tools"
-run = "go build -o ./bin/ ./cmd/*"
+run = """
+if [ "${PGNGEN_DEBUG:-0}" = "1" ]; then
+  go build -tags=pgngen_debug -o ./bin/ ./cmd/*
+else
+  go build -o ./bin/ ./cmd/*
+fi
+"""
 
 [tasks.buildcover]
 env = { "CGO_ENABLED" = "0" }
-description = "Build tools"
-run = "go build -cover -o ./bincover/ ./cmd/*"
+description = "Build tools with coverage"
+run = """
+if [ "${PGNGEN_DEBUG:-0}" = "1" ]; then
+  go build -tags=pgngen_debug -cover -o ./bincover/ ./cmd/*
+else
+  go build -cover -o ./bincover/ ./cmd/*
+fi
+"""
 
 [tasks.pgngen]
 env = { "CGO_ENABLED" = "0" }
 description = "Generate Pgninfo"
 run = "./bin/pgngen"
 
+[tasks.test-debug]
+description = "Run tests with debug enabled"
+run = "PGNGEN_DEBUG=1 go test -tags=pgngen_debug ./..."
+
 [tasks.test]
-description = "Run tests"
-run = ["gotestsum"]
+description = "Run normal tests"
+run = "go test ./..."
 
 [tasks.lint]
 description = "Run linters"

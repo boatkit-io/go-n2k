@@ -1,0 +1,18 @@
+{
+    "gopls": {
+        "buildFlags": ["-tags=!pgngen_debug"],
+        "env": {
+            "PGNGEN_DEBUG": "0"
+        },
+        "directoryFilters": [
+            "-node_modules",
+            "-/pkg/pgn/pgn_debug_test.go"
+        ],
+        "verboseOutput": true,
+        "analyses": {
+            "unusedparams": true,
+            "shadow": true
+        }
+    },
+    "go.testTags": "pgngen_debug"
+}

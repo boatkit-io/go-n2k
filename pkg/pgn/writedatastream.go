@@ -64,7 +64,7 @@ func (s *DataStream) writeStringFix(value []uint8, bitLength uint16, bitOffset u
 func (s *DataStream) writeBinary(value []uint8, bitLength uint16, bitOffset uint16) error {
 	var numBytes uint16
 	if s.getBitOffset() != uint32(bitOffset) && bitOffset != 0 { // bitOffset == 0 can mean we don't know the offset, sadly
-		return fmt.Errorf("attempt to write field at wrong offset in putNumberRaw: %d, %d", s.getBitOffset(), bitOffset)
+		return fmt.Errorf("attempt to write field at wrong offset in writeBinary: %d, %d", s.getBitOffset(), bitOffset)
 	}
 	// if length of value in bits is less than bitlength, pad with 0 (FF?)
 	// Binary values always start on a byte boundary, so we don't have to worry about the field being misaligned.
@@ -75,7 +75,10 @@ func (s *DataStream) writeBinary(value []uint8, bitLength uint16, bitOffset uint
 		numBytes = uint16(math.Ceil(float64(bitLength) / 8))
 	}
 	if numBytes > MaxPGNLength-(bitOffset/8) {
-		return fmt.Errorf("attempt to write field with length greater than max field length")
+		numBytes = MaxPGNLength - (bitOffset / 8)
+		if numBytes == 0 {
+			return fmt.Errorf("attempt to write binary field at maximum pgn length")
+		}
 	}
 	if bitLength != 0 { // bitlengthVariable is false, we write the bits we have. No way to specify #bits, so always mod 8=0
 		if value == nil {
@@ -222,7 +225,7 @@ func checkNilInterface(i interface{}) bool {
 
 // writeUnit writes units package values
 // value must be converted to the canboat unit before calling
-func (s *DataStream) writeUnit(value units.Units, length uint16, resolution float32, bitOffset uint16, offset int64, signed bool) error {
+func (s *DataStream) writeUnit(value any, length uint16, resolution float32, bitOffset uint16, offset int64, signed bool) error {
 	if checkNilInterface(value) {
 		if signed {
 			return s.writeSignedResolution32(nil, length, resolution, bitOffset, offset)
@@ -231,30 +234,29 @@ func (s *DataStream) writeUnit(value units.Units, length uint16, resolution floa
 	}
 
 	// Convert to canboat's default unit based on the type
-	var canboatValue units.Units
+	var canboatValue float32
 	switch v := value.(type) {
 	case *units.Distance:
-		canboatValue = v.Convert(units.Meter)
+		canboatValue = v.Convert(units.Meter).Value
 	case *units.Velocity:
-		canboatValue = v.Convert(units.MetersPerSecond)
+		canboatValue = v.Convert(units.MetersPerSecond).Value
 	case *units.Volume:
-		canboatValue = v.Convert(units.Liter)
+		canboatValue = v.Convert(units.Liter).Value
 	case *units.Temperature:
-		canboatValue = v.Convert(units.Kelvin)
+		canboatValue = v.Convert(units.Kelvin).Value
 	case *units.Pressure:
-		canboatValue = v.Convert(units.Pa)
+		canboatValue = v.Convert(units.Pa).Value
 	case *units.Flow:
-		canboatValue = v.Convert(units.LitersPerHour)
+		canboatValue = v.Convert(units.LitersPerHour).Value
 	default:
-		// If no conversion needed, use original value
-		canboatValue = value
+		// invalid unit, return error
+		return fmt.Errorf("invalid unit type: %T", value)
 	}
 
-	val := canboatValue.GetValue()
 	if signed {
-		return s.writeSignedResolution32(val, length, resolution, bitOffset, offset)
+		return s.writeSignedResolution32(&canboatValue, length, resolution, bitOffset, offset)
 	}
-	return s.writeUnsignedResolution32(val, length, resolution, bitOffset, offset)
+	return s.writeUnsignedResolution32(&canboatValue, length, resolution, bitOffset, offset)
 }
 
 // writeFloat32 writes the specified length of value at the specified offset
