@@ -504,9 +504,9 @@ func (s *DataStream) getSignedNullableNumber(bitLength uint16) (*int64, error) {
 }
 
 // readVariableData method reads and returns the value of pgn.fieldIndex as a byte array
-func (s *DataStream) readVariableData(pgn uint32, manID ManufacturerCodeConst, fieldIndex uint8) ([]uint8, error) {
+func (s *DataStream) readVariableData(pgn uint32, fieldIndex uint8) ([]uint8, error) {
 	var str string
-	field, err := GetFieldDescriptor(pgn, manID, fieldIndex)
+	field, err := GetFieldDescriptor(pgn, 0, fieldIndex) // Use 0 for non-proprietary PGNs
 	if err == nil {
 		if field.BitLengthVariable {
 			if field.CanboatType == "STRING_LAU" {

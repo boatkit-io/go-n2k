@@ -4,7 +4,6 @@ package pgn
 
 import (
 	"fmt"
-	"encoding/json"
 	
 	"github.com/boatkit-io/tugboat/pkg/units"
 )
@@ -162,283 +161,170 @@ var unseenList = []PgnInfo{
 	},
 {{- end }}
 }
-var PgnList = pgnList		
+
+{{- range .PGNDoc.PGNs }}
+{{- if eq .PGN 126208 }}
+
+    // Define the partial type and its methods
+    type {{ .Id }}Partial struct {
+        Info MessageInfo
+        {{- range .Fields }}
+        {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
+        {{ .Id }} {{ convertFieldType . }}
+        {{- end }}
+        {{- end }}
+        // Raw data for variable length fields in proprietary group function messages
+        RawData []uint8
+    }
+
+    // Decode function that returns error for Partial types
+    func Decode{{ .Id }}Partial(Info MessageInfo, stream *DataStream) (any, error) {
+        return nil, fmt.Errorf("cannot decode {{ .Id }}Partial directly - use {{ .Id }} for decoding")
+    }
+
+    // Encode returns an error for partial variants
+    func (p {{ .Id }}Partial) Encode(stream *DataStream) (*MessageInfo, error) {
+        return nil, fmt.Errorf("cannot encode partial variant of {{ .Id }} - use {{ .Id }} for encoding")
+    }
+{{- end }}
+{{- end }}
+
+var PgnList = pgnList
 var pgnList = []PgnInfo{
 {{- range .PGNDoc.PGNs }}
-	{
-		Id: "{{ .Id }}",
-		PGN: {{ .PGN }},
-		Description: {{ quote .Description }},
-		Fast: {{ if eq .Type "Fast" }}true{{ else }}false{{ end }},
-		ManId: {{ matchManufacturer . }},
-		Decoder: Decode{{ .Id }},
-		{{- if $forDebug }}
-		Instance: &{{ .Id }} {},
-		{{- if .RepeatingFieldSet1CountField }}
-		Repeating1CountField: {{ .RepeatingFieldSet1CountField }},
-		{{- end }}
-		{{- if .RepeatingFieldSet2CountField }}
-		Repeating2CountField: {{ .RepeatingFieldSet2CountField }},
-		{{- end }}
-		{{- end }}
-		Fields: map[int]*FieldDescriptor{
-		{{- range .Fields }}
-		{{ .Order }}: { 
-			Name: "{{ .Name }}",
-			BitLength: {{ .BitLength }},
-			BitOffset: {{ .BitOffset }},
-			BitLengthVariable: {{ .BitLengthVariable }},
-			CanboatType: "{{ .FieldType }}",
-			Resolution: {{- if .Resolution -}}
-			{{ .Resolution }}
-			{{- else -}}
-			1
-			{{- end }},
-			{{- if $forDebug }}
-			Id: "{{ .Id }}",
-			GolangType: {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") -}}
-			"{{- convertFieldType . }}",
-			{{- else -}}	
-				"",
-			{{- end }}
-			Signed: {{ .Signed }},
-			RangeMin: {{ .RangeMin }},
-			RangeMax: {{ .RangeMax }},
-			DomainMin: {{ .DomainMin }},
-			DomainMax: {{ .DomainMax }},
-			{{- if .Match }} 
-			Match: {{ .Match }},
-			{{- else }}
-			Match: -1,
-			{{- end }}
-			{{- if .Offset }} 
-			Offset: {{ .Offset }},
-			{{- end }}
-			Order: {{ .Order }},
-			{{- end }}
-			},
-		{{- end }}
-		},
-	},
+    {
+        Id: "{{ .Id }}",
+        PGN: {{ .PGN }},
+        Description: {{ quote .Description }},
+        Fast: {{ if eq .Type "Fast" }}true{{ else }}false{{ end }},
+        ManId: {{ matchManufacturer . }},
+        Decoder: Decode{{ .Id }},
+        {{- if $forDebug }}
+        Instance: &{{ .Id }} {},
+        {{- if .RepeatingFieldSet1CountField }}
+        Repeating1CountField: {{ .RepeatingFieldSet1CountField }},
+        {{- end }}
+        {{- if .RepeatingFieldSet2CountField }}
+        Repeating2CountField: {{ .RepeatingFieldSet2CountField }},
+        {{- end }}
+        {{- end }}
+        Fields: map[int]*FieldDescriptor{
+        {{- range .Fields }}
+        {{ .Order }}: { 
+            BitLength: {{ .BitLength }},
+            BitOffset: {{ .BitOffset }},
+            BitLengthVariable: {{ .BitLengthVariable }},
+            CanboatType: "{{ .FieldType }}",
+            Resolution: {{- if .Resolution -}}
+            {{ .Resolution }}
+            {{- else -}}
+            1
+            {{- end }},
+            {{- if $forDebug }}
+            Id: "{{ .Id }}",
+            GolangType: {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") -}}
+            "{{- convertFieldType . }}",
+            {{- else -}}    
+                "",
+            {{- end }}
+            Signed: {{ .Signed }},
+            RangeMin: {{ .RangeMin }},
+            RangeMax: {{ .RangeMax }},
+            DomainMin: {{ .DomainMin }},
+            DomainMax: {{ .DomainMax }},
+            {{- if .Match }} 
+            Match: {{ .Match }},
+            {{- else }}
+            Match: -1,
+            {{- end }}
+            {{- if .Offset }} 
+            Offset: {{ .Offset }},
+            {{- end }}
+            Order: {{ .Order }},
+            {{- end }}
+            },
+        {{- end }}
+        },
+    },
 {{- end }}
 }
+
 // Build structs for each PGN
 {{- range .PGNDoc.PGNs }}
 {{- $pgn := . }}
-type {{ .Id }} struct {
-	Info MessageInfo
-	{{- range .Fields }}
-	{{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
-	{{ .Id }} {{ convertFieldType . }} 
-	{{- end }}
-	{{- end }}
-	{{- if  $pgn.RepeatingFieldSet1Size }}
-	Repeating1 []{{ $pgn.Id }}Repeating1
-	{{- end }}
-	{{- if $pgn.RepeatingFieldSet2Size  }}
-	Repeating2 []{{ $pgn.Id }}Repeating2
-	{{- end }}
-}
+
 {{- if $pgn.RepeatingFieldSet1Size }}
-type {{ $pgn.Id }}Repeating1 struct {
-	{{- range $pgn.FieldsRepeating1 }}
-	{{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
-	{{ .Id }} {{ convertFieldType . }}
-	{{- end }}
-	{{- end }}
+type {{ .Id }}Repeating1 struct {
+    {{- range $pgn.FieldsRepeating1 }}
+    {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
+    {{ .Id }} {{ convertFieldType . }}
+    {{- end }}
+    {{- end }}
 }
-func (p {{ .Id }} ) encodeRepeating1(stream *DataStream) error {
-	{{- $isKeyValue := or (eq .Id "SimnetParameterSet") (eq .Id "SimnetKeyValue" ) (eq .Id "BGKeyValueData" ) }}
-	{{- if $isKeyValue }}
-		var valueLength uint16
-	{{- end }}
-	var err error
-	{{- $substruct := "Repeating1[index]." }}
-	for index := range p.Repeating1 {
-	{{- range $idx, $field := $pgn.FieldsRepeating1 }}
-	{{- if and $isKeyValue (eq .Name "Length") }}
-	if p.Repeating1[index].Length != nil {
-		valueLength = uint16(*p.Repeating1[index].Length) * 8
-	}
-	{{- end }}
-	
-
-	{{- $func := getFieldSerializer $field $substruct  }}
-	{{- if ne $func "" }}
-	{{ $func }}
-	if err != nil {
-		return err
-	}
-	{{- end }}
-	{{- end }}
-	}
-	return nil
-}
-
 {{- end }}
+
 {{- if $pgn.RepeatingFieldSet2Size }}
 type {{ .Id }}Repeating2 struct {
-	{{- range $pgn.FieldsRepeating2 }}
-	{{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
-	{{ .Id }} {{ convertFieldType . }}
-	{{- end }}
-	{{- end }}
-}
-
-func (p {{ .Id }} ) encodeRepeating2(stream *DataStream) error {
-	var err error
-	{{- $substruct := "Repeating2[index]." }}
-	for index := range p.Repeating2 {
-	{{- range $idx, $field := $pgn.FieldsRepeating2 }}
-	{{- $func := getFieldSerializer $field $substruct  }}
-	{{- if ne $func "" }}
-	{{ $func }}
-	if err != nil {
-		return err
-	}
-	{{- end }}
-	{{- end }}
-	}
-	return nil
+    {{- range $pgn.FieldsRepeating2 }}
+    {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
+    {{ .Id }} {{ convertFieldType . }}
+    {{- end }}
+    {{- end }}
 }
 {{- end }}
-func (p {{ .Id }} ) Marshal() ([]byte, error) {
-	var pre, post []byte
-	pre = []byte("{ \"{{- .Id}}\":")
-	post = []byte("}")
-	ret, err :=  json.Marshal(p)
-	if err != nil {
-		return nil, err
-		}
-	pre = append(pre, ret...)
-	pre = append(pre, post...)
-	 return pre, nil
-}
-func (p {{ .Id }} ) Encode(stream *DataStream) (*MessageInfo, error) {
-	var err error
-	{{- $binaryLengthField :=  $pgn.BitLengthField }}
-	{{- if  $binaryLengthField }}
-		var binaryLength uint16
-		if p.NumberOfBitsInBinaryDataField != nil {
-			binaryLength = *p.NumberOfBitsInBinaryDataField
-		}
-	{{- end }}
-	{{- $repeat1CountIndex :=  $pgn.RepeatingFieldSet1CountField }}
-	{{- $repeat2CountIndex :=  $pgn.RepeatingFieldSet2CountField }}
-	{{- $repeat1StartIndex := $pgn.RepeatingFieldSet1StartField }}
-	{{- $repeat2StartIndex := $pgn.RepeatingFieldSet2StartField }}
-	{{- range $idx, $field := $pgn.Fields }}
-	{{- if and (gt $repeat2CountIndex 0) (eq $field.Id "Pgn") }}
-	{{- $func := getFieldSerializer $field "" }}
-	{{- if ne $func "" }}
-	{{ $func }}
-	if err != nil {
-		return nil, err
-	}	
-	if (p.Pgn != nil) && IsProprietaryPGN(*p.Pgn) {
-	{{- continue }}
-	{{- end }}
-	{{- end }}
-	{{- if and (gt $repeat2CountIndex 0) (eq $idx 5) }}
-	}
-	{{- end }}
-	{{- $func := getFieldSerializer $field "" }}
-	{{- if ne $func "" }}
-	{{ $func }}
-	if err != nil {
-		return nil, err
-	}
-	{{- end }}
-	{{- end }}
-	{{- if  (gt $repeat1StartIndex 0) }}
-	err = p.encodeRepeating1(stream)
-	if err != nil {
-		return nil, err
-		}
-	{{- end }}
-	{{- if  (gt $repeat2StartIndex 0) }}
-	err = p.encodeRepeating2(stream)
-	if err != nil {
-		return nil, err
-		}
-	{{- end }}
-	return &p.Info, err
+
+type {{ .Id }} struct {
+    Info MessageInfo
+    {{- range $pgn.Fields }}
+    {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
+    {{ .Id }} {{ convertFieldType . }}
+    {{- end }}
+    {{- end }}
+    {{- if $pgn.RepeatingFieldSet1Size }}
+    Repeating1 []{{ .Id }}Repeating1
+    {{- end }}
+    {{- if $pgn.RepeatingFieldSet2Size }}
+    Repeating2 []{{ .Id }}Repeating2
+    {{- end }}
 }
 
 {{- $funcName := concat "Decode" .Id }}
 func {{ $funcName }}(Info MessageInfo, stream *DataStream) (any, error) {
-	var val {{ .Id }}
-	val.Info = Info
-
+    var val {{ .Id }}
+    val.Info = Info
+	{{- $repeat1 :=  $pgn.RepeatingFieldSet1Size }}
+    {{- if and $repeat1 (not (eq .RepeatingFieldSet1CountField -1)) }}
+    var repeat1Count uint16 = 0
+    {{- end }}
+    {{- if and (eq .PGN 126208) (gt $repeat1 1) }}
+    var fieldIndex uint8
+    {{- end }}
 	{{- $binaryLengthField :=  $pgn.BitLengthField }}
 	{{- if  $binaryLengthField }}
 		var binaryLength uint16 = 0
-	{{- end }}
-	{{- $repeat1 :=  $pgn.RepeatingFieldSet1Size }}
-	{{- if  $repeat1 }}
-		var repeat1Count uint16 = 0
-	{{- end }}
-	{{- $repeat2 :=  $pgn.RepeatingFieldSet2Size }}
-	{{- if $repeat2 }}
-		var repeat2Count uint16
 	{{- end }}
 	{{- $isKeyValue := or (eq .Id "SimnetParameterSet") (eq .Id "SimnetKeyValue" ) (eq .Id "BGKeyValueData" ) }}
 	{{- if $isKeyValue }}
 		var valueLength uint16
 	{{ end }}
-	{{- $hasVariableData := and (eq .PGN 126208) (gt $repeat1 1) }}
-	{{- if $hasVariableData }}
-		var fieldIndex uint8
-		var manufacturer ManufacturerCodeConst
-	{{- end }}
 
-	{{- range $idx, $field := $pgn.Fields }}
-	{{- if or (eq $field.FieldType "RESERVED") (eq $field.FieldType "SPARE") }}
-	stream.skipBits({{ $field.BitLength }})
-	if stream.isEOF() {
-		return val, nil
-		}
-	{{- else }}	
-	{{- if and $repeat2 (eq $idx 2) }}
-	if (val.Pgn != nil) && IsProprietaryPGN( *val.Pgn) {
-	{{- end }}
-	{{- if and $repeat2 (eq $idx 5) }}
-	} 
-	{{- end }}
-	{{- $funcs := getFieldDeserializer $pgn . }}
-	if v, err := {{ index $funcs 0 }}; err != nil {
-		return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ .Id }}: %w", err)
-	} else {
-	{{- if not (isNil .Match) }}
-	{{- if isPointerFieldType  . }}
-		if v != nil && *v != {{ derefInt .Match }} {
-			return nil, fmt.Errorf("match failed for {{ $pgn.Id }}-{{ .Id }}: Expected %d != %d", {{ .Match }}, *v)
-		} 
-	{{- else }}
-		if v != {{ .Match }} {
-			return nil, fmt.Errorf("match failed for {{ $pgn.Id }}-{{ .Id }}: Expected %d != %d", {{ .Match }}, v)
-		} 
-	{{- end }}
-	{{- end }}
-		val.{{ .Id }} = {{ if ne (index $funcs 1) "" }}{{ index $funcs 1 }}{{ else }}v{{ end }}
-	{{- if and $repeat1 (eq $idx (subtract $pgn.RepeatingFieldSet1CountField 1)) }}
-		if v != nil {
-			repeat1Count = uint16(*v)
-		}
-	{{- end }}
-	{{- if and $repeat2 (eq $idx (subtract $pgn.RepeatingFieldSet2CountField 1)) }}
-		if v != nil {
-			repeat2Count = uint16(*v)
-		}
-	{{- end }}
-	{{- if and $binaryLengthField (eq $idx (subtract $pgn.BitLengthField 1)) }}
+    // Decode all non-repeating fields
+    {{- range $idx, $field := $pgn.Fields }}
+    {{- if or (eq $field.FieldType "RESERVED") (eq $field.FieldType "SPARE") }}
+    stream.skipBits({{ $field.BitLength }})
+    {{- else }}
+    if v, err := {{ index (getFieldDeserializer $pgn $field) 0 }}; err != nil {
+        return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ $field.Id }}: %w", err)
+    } else {
+        val.{{ $field.Id }} = {{ if ne (index (getFieldDeserializer $pgn $field) 1) "" }}{{ index (getFieldDeserializer $pgn $field) 1 }}{{ else }}v{{ end }}
+        {{- if and $repeat1 (eq $field.Order $pgn.RepeatingFieldSet1CountField) }}
+        if v != nil {
+            repeat1Count = uint16(*v)
+        }
+        {{- end }}
+		{{- if and $binaryLengthField (eq $idx (subtract $pgn.BitLengthField 1)) }}
 		if v != nil {
 			binaryLength = uint16(*v)
-		}
-	{{- end }}
-	{{- if and $hasVariableData (eq .Id "ManufacturerCodeConst") }}
-		if v != nil {
-			manufacturer = ManufacturerCodeConst(*v)
 		}
 	{{- end }}
 	{{- if and $isKeyValue (eq $field.Name "MinLength") }}
@@ -447,97 +333,155 @@ func {{ $funcName }}(Info MessageInfo, stream *DataStream) (any, error) {
 		}
 	{{ end }}
 
-		if stream.isEOF() {
-			return val, nil
-		} 
-	} 
-	{{- end }}
-{{- end }}
-	{{- if $repeat1 }}
-	{{- if gt $pgn.RepeatingFieldSet1CountField 0 }}
-		if repeat1Count == 0 {
-			return val, nil
+        {{- if and (eq $pgn.PGN 126208) (eq $field.FieldType "FIELD_INDEX") }}
+        if v != nil {
+            fieldIndex = uint8(*v)
+        }
+        {{- end }}
+    }
+    {{- end }}
+    {{- end }}
+
+    {{- if eq .PGN 126208 }}
+    // For PGN 126208, check if commanded PGN is proprietary
+    if IsProprietaryPGN(*val.Pgn) {
+        var partial {{ .Id }}Partial
+        partial.Info = Info
+        {{- range $pgn.Fields }}
+        {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
+        partial.{{ .Id }} = val.{{ .Id }}
+        {{- end }}
+        {{- end }}
+        if v, err := stream.readBinaryData(stream.remainingLength() * 8); err != nil {
+            return nil, fmt.Errorf("failed to read remaining bytes: %w", err)
+        } else {
+            partial.RawData = v
+        }
+        return partial, nil
+    }
+    {{- end }}
+
+    {{- if gt .RepeatingFieldSet1StartField 0 }}
+    val.Repeating1 = make([]{{ .Id }}Repeating1, repeat1Count)
+    for i := range val.Repeating1 {
+        {{- range .FieldsRepeating1 }}
+        {{- if or (eq .FieldType "RESERVED") (eq .FieldType "SPARE") }}
+        stream.skipBits({{ .BitLength }})
+        {{- else }}
+        if v, err := {{ index (getFieldDeserializer $pgn .) 0 }}; err != nil {
+            return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ .Id }}: %w", err)
+        } else {
+            val.Repeating1[i].{{ .Id }} = {{ if ne (index (getFieldDeserializer $pgn .) 1) "" }}{{ index (getFieldDeserializer $pgn .) 1 }}{{ else }}v{{ end }}
+        }
+        {{- end }}
+        {{- end }}
+    }
+    {{- end }}
+
+    return val, nil
+}
+
+// Encode implementation for complete variant
+func (p {{ .Id }}) Encode(stream *DataStream) (*MessageInfo, error) {
+    var err error
+	{{- $binaryLengthField :=  $pgn.BitLengthField }}
+	{{- if  $binaryLengthField }}
+		var binaryLength uint16
+		if p.NumberOfBitsInBinaryDataField != nil {
+			binaryLength = *p.NumberOfBitsInBinaryDataField
 		}
 	{{- end }}
-	val.Repeating1 = make([]{{ $pgn.Id }}Repeating1, 0)
-	i := 0 
-	for {
-		var rep {{ $pgn.Id }}Repeating1
-		{{- range $pgn.FieldsRepeating1 }}
-		{{- if eq .FieldType "RESERVED" }}
-		stream.skipBits({{ .BitLength }})
-		{{- else }}
-		{{- $funcs := getFieldDeserializer $pgn . }}
-		if v, err := {{ index $funcs 0 }}; err != nil {
-			return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ .Id }}: %w", err)
-		} else {
-			rep.{{ .Id }} = {{ if ne (index $funcs 1) "" }}{{ index $funcs 1 }}{{ else }}v{{ end }}
-		{{- if eq .FieldType "FIELD_INDEX" }}
-			if v != nil {
-				fieldIndex = *v
-			}
-		{{- end }}
+    {{- range $idx, $field := .Fields }}
+    {{- $func := getFieldSerializer $field "" }}
+    {{- if ne $func "" }}
+    {{ $func }}
+    if err != nil {
+        return nil, err
+    }
+    {{- end }}
+    {{- end }}
+    {{- if  (gt .RepeatingFieldSet1StartField 0) }}
+    err = p.encodeRepeating1(stream)
+    if err != nil {
+        return nil, err
+    }
+    {{- end }}
+    {{- if  (gt .RepeatingFieldSet2StartField 0) }}
+    err = p.encodeRepeating2(stream)
+    if err != nil {
+        return nil, err
+    }
+    {{- end }}
+    return &p.Info, err
+}
+
+{{- if gt .RepeatingFieldSet1StartField 0 }}
+func (p {{ .Id }}) encodeRepeating1(stream *DataStream) error {
+     var err error
+ 	{{- $isKeyValue := or (eq .Id "SimnetParameterSet") (eq .Id "SimnetKeyValue" ) (eq .Id "BGKeyValueData" ) }}
+	{{- if $isKeyValue }}
+		var valueLength uint16
+	{{- end }}
+		
+  for index, _ := range p.Repeating1 {
+        {{- range .FieldsRepeating1 }}
 		{{- if and $isKeyValue (eq .Name "Length") }}
-			if v != nil {
-				valueLength = uint16(*v) * 8
-			}
-		{{ end }}
-		} 
-		{{- end }}
-		{{- end }}
-		val.Repeating1 = append(val.Repeating1, rep)
-		if int(repeat1Count) == 0 {
-			if stream.isEOF() {
-				return val, nil
-			} 
-		} else {
-			i++
-			if i == int(repeat1Count) {
-				break
-			} 
-		} 
-	} 
-	{{- end }}
-	{{- if $repeat2 }}
-	{{- if gt $pgn.RepeatingFieldSet2CountField 0 }}
-		if repeat2Count == 0 {
-			return val, nil
+		if p.Repeating1[index].Length != nil {
+			valueLength = uint16(*p.Repeating1[index].Length) * 8
 		}
-	{{- end }}	
-	val.Repeating2 = make([]{{ $pgn.Id }}Repeating2, 0)
-	i = 0
-	for {
-		var rep {{ $pgn.Id }}Repeating2
-		{{- range $pgn.FieldsRepeating2 }}
-		{{- if eq .FieldType "RESERVED" }}
-		stream.skipBits({{ .BitLength }})
-		{{- else }}
-		{{- $funcs := getFieldDeserializer $pgn . }}
-		if v, err := {{ index $funcs 0 }}; err != nil {
-			return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ .Id }}: %w", err)
-		} else {
-			rep.{{- .Id }} = {{ if ne (index $funcs 1) "" }}{{ index $funcs 1 }}{{ else }}v{{ end }}
-		{{- if and (eq $pgn.RepeatingFieldSet2CountField 2) (eq .FieldType "FIELD_INDEX") }}
-			if v != nil {
-				fieldIndex = *v
-			}
 		{{- end }}
-		}  
-		{{- end }}
-	{{- end }}
-		val.Repeating2 = append(val.Repeating2, rep)
-		if int(repeat2Count) == 0 {
-			if stream.isEOF() {
-				return val, nil
-			}  
-		} else {
-			i++
-			if i == int(repeat2Count) {
-				break
-			} 
-		} 
-	} 
-	{{- end }}	
-	return val, nil
+        {{- $func := getFieldSerializer . "Repeating1[index]." }}
+        {{- if ne $func "" }}
+        {{ $func }}
+        if err != nil {
+            return err
+        }
+        {{- end }}
+        {{- end }}
+    }
+    return nil
 }
 {{- end }}
+
+{{- if gt .RepeatingFieldSet2StartField 0 }}
+func (p {{ .Id }}) encodeRepeating2(stream *DataStream) error {
+     var err error
+   for index, _ := range p.Repeating2 {
+        {{- range .FieldsRepeating2 }}
+ 		{{- $substruct := "Repeating2[index]." }}
+       	{{- $func := getFieldSerializer . $substruct }}
+        {{- if ne $func "" }}
+        {{ $func }}
+        if err != nil {
+            return err
+        }
+        {{- end }}
+        {{- end }}
+    }
+    return nil
+}
+{{- end }}
+
+{{- else }}
+{{- if .RepeatingFieldSet1Size }}
+type {{ .Id }}Repeating1 struct {
+    {{- range .FieldsRepeating1 }}
+    {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
+    {{ .Id }} {{ convertFieldType . }}
+    {{- end }}
+    {{- end }}
+}
+{{- end }}
+
+{{- if .RepeatingFieldSet2Size }}
+type {{ .Id }}Repeating2 struct {
+    {{- range .FieldsRepeating2 }}
+    {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") }}
+    {{ .Id }} {{ convertFieldType . }}
+    {{- end }}
+    {{- end }}
+}
+{{- end }}
+{{- end }}
+
+

@@ -823,7 +823,7 @@ func getFieldDeserializer(pgn PGN, field PGNField) [2]string {
 		}
 		return [2]string{"stream.readBinaryData(binaryLength)", ""}
 	case "VARIABLE":
-		return [2]string{"stream.readVariableData(*val.Pgn, manufacturer, fieldIndex)", ""}
+		return [2]string{"stream.readVariableData(*val.Pgn, fieldIndex)", ""}
 	case "KEY_VALUE":
 		return [2]string{"stream.readBinaryData(valueLength)", ""}
 	default:

@@ -13,8 +13,8 @@ type DataStream struct {
 }
 
 // GetData returns the DataStream's current contents
-func (d *DataStream) GetData() []uint8 {
-	return d.data[:d.byteOffset]
+func (s *DataStream) GetData() []uint8 {
+	return s.data[:s.byteOffset]
 }
 
 // NewDataStream returns a new DataStream. Call it with the data from a complete Packet.
@@ -35,6 +35,12 @@ func (s *DataStream) getBitOffset() uint32 {
 func (s *DataStream) resetToStart() {
 	s.byteOffset = 0
 	s.bitOffset = 0
+}
+
+// remainingLength returns the number of bits remaining in the stream
+func (s *DataStream) remainingLength() uint16 {
+	totalBits := len(s.data)*8 - (int(s.byteOffset)*8 + int(s.bitOffset))
+	return uint16(totalBits)
 }
 
 // calcMaxPositiveValue calculates the maximum value that can be represented
