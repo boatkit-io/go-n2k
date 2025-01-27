@@ -1,5 +1,3 @@
-//go:build pgngen_debug
-
 package pgn
 
 import (

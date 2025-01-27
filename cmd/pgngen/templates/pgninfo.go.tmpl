@@ -55,6 +55,7 @@ type FieldDescriptor struct {
 	Resolution        float32
 	Unit              string
 	BitLookupName     string
+    Match             int
 
 	{{if $forDebug}}
 	// The following fields are used for testing only. Uncomment to use.
@@ -65,7 +66,6 @@ type FieldDescriptor struct {
 	DomainMin         float64
 	DomainMax         float64
 	Signed            bool
-	Match             int
 	Offset            int64
 	Order             uint8
 	{{end}}
@@ -220,6 +220,9 @@ var pgnList = []PgnInfo{
             {{- else -}}
             1
             {{- end }},
+            {{- if .Match }}
+            Match: {{ .Match }},
+            {{- end }}
             {{- if $forDebug }}
             Id: "{{ .Id }}",
             GolangType: {{- if and (ne .FieldType "RESERVED") (ne .FieldType "SPARE") -}}
@@ -232,9 +235,7 @@ var pgnList = []PgnInfo{
             RangeMax: {{ .RangeMax }},
             DomainMin: {{ .DomainMin }},
             DomainMax: {{ .DomainMax }},
-            {{- if .Match }} 
-            Match: {{ .Match }},
-            {{- else }}
+            {{- if isNil .Match }} 
             Match: -1,
             {{- end }}
             {{- if .Offset }} 
@@ -293,10 +294,14 @@ func {{ $funcName }}(Info MessageInfo, stream *DataStream) (any, error) {
     var val {{ .Id }}
     val.Info = Info
 	{{- $repeat1 :=  $pgn.RepeatingFieldSet1Size }}
-    {{- if and $repeat1 (not (eq .RepeatingFieldSet1CountField -1)) }}
+    {{- if $repeat1 }}
     var repeat1Count uint16 = 0
     {{- end }}
-    {{- if and (eq .PGN 126208) (gt $repeat1 1) }}
+ 	{{- $repeat2 :=  $pgn.RepeatingFieldSet2Size }}
+    {{- if $repeat2 }}
+    var repeat2Count uint16 = 0
+    {{- end }}
+   {{- if and (eq .PGN 126208) (gt $repeat1 1) }}
     var fieldIndex uint8
     {{- end }}
 	{{- $binaryLengthField :=  $pgn.BitLengthField }}
@@ -338,13 +343,26 @@ func {{ $funcName }}(Info MessageInfo, stream *DataStream) (any, error) {
             fieldIndex = uint8(*v)
         }
         {{- end }}
+        {{- if not (isNil .Match) }}
+        {{- if ne (int .Match) -1 }}
+        {{- if isPointerFieldType $field }}
+        if v != nil && *v != {{ derefInt .Match }} {
+            return nil, fmt.Errorf("match failed for {{ $pgn.Id }}-{{ $field.Id }}: Expected %d != %d", {{ .Match }}, *v)
+        }
+        {{- else }}
+        if v != {{ $field.Match }} {
+            return nil, fmt.Errorf("match failed for {{ $pgn.Id }}-{{ $field.Id }}: Expected %d != %d", {{ $field.Match }}, v)
+        }
+        {{- end }}
+        {{- end }}
+        {{- end }}
     }
     {{- end }}
     {{- end }}
 
     {{- if eq .PGN 126208 }}
-    // For PGN 126208, check if commanded PGN is proprietary
-    if IsProprietaryPGN(*val.Pgn) {
+    // For PGN 126208, check if commanded PGN is proprietary or unknown
+    if IsProprietaryPGN(*val.Pgn) || GetPgnInfo(*val.Pgn) == nil {
         var partial {{ .Id }}Partial
         partial.Info = Info
         {{- range $pgn.Fields }}
@@ -352,7 +370,7 @@ func {{ $funcName }}(Info MessageInfo, stream *DataStream) (any, error) {
         partial.{{ .Id }} = val.{{ .Id }}
         {{- end }}
         {{- end }}
-        if v, err := stream.readBinaryData(stream.remainingLength() * 8); err != nil {
+        if v, err := stream.readBinaryData(stream.remainingLength() / 8); err != nil {
             return nil, fmt.Errorf("failed to read remaining bytes: %w", err)
         } else {
             partial.RawData = v
@@ -361,23 +379,96 @@ func {{ $funcName }}(Info MessageInfo, stream *DataStream) (any, error) {
     }
     {{- end }}
 
-    {{- if gt .RepeatingFieldSet1StartField 0 }}
-    val.Repeating1 = make([]{{ .Id }}Repeating1, repeat1Count)
-    for i := range val.Repeating1 {
-        {{- range .FieldsRepeating1 }}
-        {{- if or (eq .FieldType "RESERVED") (eq .FieldType "SPARE") }}
-        stream.skipBits({{ .BitLength }})
-        {{- else }}
-        if v, err := {{ index (getFieldDeserializer $pgn .) 0 }}; err != nil {
-            return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ .Id }}: %w", err)
-        } else {
-            val.Repeating1[i].{{ .Id }} = {{ if ne (index (getFieldDeserializer $pgn .) 1) "" }}{{ index (getFieldDeserializer $pgn .) 1 }}{{ else }}v{{ end }}
-        }
-        {{- end }}
-        {{- end }}
+    {{- if $repeat1 }}
+    val.Repeating1 = make([]{{ .Id }}Repeating1, 0)
+	{{- if gt $pgn.RepeatingFieldSet1CountField 0 }}
+    if repeat1Count == 0 {
+        return val, nil
+    }
+    {{- else }}
+    if stream.isEOF() {
+        return val, nil
+    }
+	{{- end }}
+
+    i := 0 
+	for {
+		var rep {{ $pgn.Id }}Repeating1
+		{{- range $pgn.FieldsRepeating1 }}
+		{{- if eq .FieldType "RESERVED" }}
+		stream.skipBits({{ .BitLength }})
+		{{- else }}
+		{{- $funcs := getFieldDeserializer $pgn . }}
+		if v, err := {{ index $funcs 0 }}; err != nil {
+			return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ .Id }}: %w", err)
+		} else {
+			rep.{{ .Id }} = {{ if ne (index $funcs 1) "" }}{{ index $funcs 1 }}{{ else }}v{{ end }}
+		{{- if eq .FieldType "FIELD_INDEX" }}
+			if v != nil {
+				fieldIndex = *v
+			}
+		{{- end }}
+		{{- if and $isKeyValue (eq .Name "Length") }}
+			if v != nil {
+				valueLength = uint16(*v) * 8
+			}
+		{{ end }}
+		} 
+		{{- end }}
+		{{- end }}
+		val.Repeating1 = append(val.Repeating1, rep)
+		if int(repeat1Count) == 0 {
+			if stream.isEOF() {
+				return val, nil
+			} 
+		} else {
+			i++
+			if i == int(repeat1Count) {
+				break
+			} 
+		} 
     }
     {{- end }}
-
+	{{- if $repeat2 }}
+	{{- if gt $pgn.RepeatingFieldSet2CountField 0 }}
+		if repeat2Count == 0 {
+			return val, nil
+		}
+	{{- end }}	
+	val.Repeating2 = make([]{{ $pgn.Id }}Repeating2, 0)
+	i = 0
+	for {
+		var rep {{ $pgn.Id }}Repeating2
+		{{- range $pgn.FieldsRepeating2 }}
+		{{- if eq .FieldType "RESERVED" }}
+		stream.skipBits({{ .BitLength }})
+		{{- else }}
+		{{- $funcs := getFieldDeserializer $pgn . }}
+		if v, err := {{ index $funcs 0 }}; err != nil {
+			return nil, fmt.Errorf("parse failed for {{ $pgn.Id }}-{{ .Id }}: %w", err)
+		} else {
+			rep.{{- .Id }} = {{ if ne (index $funcs 1) "" }}{{ index $funcs 1 }}{{ else }}v{{ end }}
+		{{- if and (eq $pgn.RepeatingFieldSet2CountField 2) (eq .FieldType "FIELD_INDEX") }}
+			if v != nil {
+				fieldIndex = *v
+			}
+		{{- end }}
+		}  
+		{{- end }}
+	{{- end }}
+		val.Repeating2 = append(val.Repeating2, rep)
+		if int(repeat2Count) == 0 {
+			if stream.isEOF() {
+				return val, nil
+			}  
+		} else {
+			i++
+			if i == int(repeat2Count) {
+				break
+			} 
+		} 
+	} 
+	{{- end }}	
     return val, nil
 }
 
@@ -422,8 +513,10 @@ func (p {{ .Id }}) encodeRepeating1(stream *DataStream) error {
 	{{- if $isKeyValue }}
 		var valueLength uint16
 	{{- end }}
-		
-  for index, _ := range p.Repeating1 {
+	if len(p.Repeating1) == 0 {
+		return nil
+	}
+    for index, _ := range p.Repeating1 {
         {{- range .FieldsRepeating1 }}
 		{{- if and $isKeyValue (eq .Name "Length") }}
 		if p.Repeating1[index].Length != nil {
@@ -445,8 +538,11 @@ func (p {{ .Id }}) encodeRepeating1(stream *DataStream) error {
 
 {{- if gt .RepeatingFieldSet2StartField 0 }}
 func (p {{ .Id }}) encodeRepeating2(stream *DataStream) error {
-     var err error
-   for index, _ := range p.Repeating2 {
+    var err error
+	if len(p.Repeating2) == 0 {
+		return nil
+	}
+    for index, _ := range p.Repeating2 {
         {{- range .FieldsRepeating2 }}
  		{{- $substruct := "Repeating2[index]." }}
        	{{- $func := getFieldSerializer . $substruct }}

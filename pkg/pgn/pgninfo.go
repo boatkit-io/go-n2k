@@ -45,7 +45,7 @@ func IsProprietaryPGN(pgn uint32) bool {
 		return true
 	} else if pgn >= 0x0FF00 && pgn <= 0x0FFFF {
 		// proprietary PDU2 (non addressed) single-frame range 0xFF00 to 0xFFFF (65280 - 65535).
-		// Non addressed means that destination wil be 255 (=broadcast) so any cabable device can handle it.
+		// Non addressed means that destination wil be 255 (=broadcast) so any capable device can handle it.
 		return true
 	} else if pgn >= 0x1EF00 && pgn <= 0x1EFFF {
 		// proprietary PDU1 (addressed) fast-packet PGN range 0x1EF00 to 0x1EFFF (126720 - 126975)
@@ -120,4 +120,12 @@ func IsFast(pgn uint32) bool {
 		return pi[0].Fast
 	}
 	return false // should never be called with an invalid PGN, but avoid a panic
+}
+
+// GetPgnInfo returns the first PgnInfo for a given PGN, or nil if not found
+func GetPgnInfo(pgn uint32) *PgnInfo {
+	if pis, exists := PgnInfoLookup[pgn]; exists && len(pis) > 0 {
+		return pis[0]
+	}
+	return nil
 }

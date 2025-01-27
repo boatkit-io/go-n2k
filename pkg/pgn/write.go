@@ -22,7 +22,6 @@ func NewPublisher(handler PgnWriter) Publisher {
 // PgnStruct defines an interface for Pgns that can write their data in the NMEA 2K wire format
 type PgnStruct interface {
 	Encode(*DataStream) (*MessageInfo, error)
-	Marshal() ([]byte, error)
 }
 
 // Write writes a golang type describing a PGN to the n2k network.
