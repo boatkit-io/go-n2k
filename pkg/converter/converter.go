@@ -11,26 +11,119 @@ import (
 	"github.com/brutella/can"
 )
 
-// CanFrameFromRaw parses an input string into a can.Frame.
-func CanFrameFromRaw(in string) *can.Frame {
+// CanFrameFromRaw parses an input string into one or more can.Frames.
+// For data longer than 8 bytes, it will create multiple frames according to the ISO-TP protocol.
+func CanFrameFromRaw(in string) ([]*can.Frame, error) {
 	elems := strings.Split(in, ",")
-	priority, _ := strconv.ParseUint(elems[1], 10, 8)
-	pgn, _ := strconv.ParseUint(elems[2], 10, 32)
-	source, _ := strconv.ParseUint(elems[3], 10, 8)
-	destination, _ := strconv.ParseUint(elems[4], 10, 8)
-	length, _ := strconv.ParseUint(elems[5], 10, 8)
+	if len(elems) < 6 {
+		return nil, fmt.Errorf("invalid raw format: insufficient elements")
+	}
+
+	priority, err := strconv.ParseUint(elems[1], 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("invalid priority: %w", err)
+	}
+	pgn, err := strconv.ParseUint(elems[2], 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid pgn: %w", err)
+	}
+	source, err := strconv.ParseUint(elems[3], 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("invalid source: %w", err)
+	}
+	destination, err := strconv.ParseUint(elems[4], 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("invalid destination: %w", err)
+	}
+	length, err := strconv.ParseUint(elems[5], 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("invalid length: %w", err)
+	}
+
+	if int(length) > len(elems)-6 {
+		return nil, fmt.Errorf("invalid raw format: data length exceeds available bytes")
+	}
 
 	id := CanIdFromData(uint32(pgn), uint8(source), uint8(priority), uint8(destination))
-	retval := can.Frame{
+
+	// For data <= 8 bytes, return a single frame
+	if length <= 8 {
+		frame := &can.Frame{
+			ID:     id,
+			Length: uint8(length),
+		}
+		for i := 0; i < int(length); i++ {
+			b, err := strconv.ParseUint(elems[i+6], 16, 8)
+			if err != nil {
+				return nil, fmt.Errorf("invalid data byte at position %d: %w", i, err)
+			}
+			frame.Data[i] = uint8(b)
+		}
+		return []*can.Frame{frame}, nil
+	}
+
+	// For data > 8 bytes, create multiple frames
+	var frames []*can.Frame
+	remainingBytes := int(length)
+	dataIndex := 6 // Start of data in elems
+
+	// First frame
+	firstFrame := &can.Frame{
 		ID:     id,
 		Length: 8,
 	}
-	for i := 0; i < int(length); i++ {
-		b, _ := strconv.ParseUint(elems[i+6], 16, 8)
-		retval.Data[i] = uint8(b)
+	// First byte: 0x1_ where _ is high nibble of length
+	firstFrame.Data[0] = 0x10 | uint8((length>>8)&0x0F)
+	// Second byte: low byte of length
+	firstFrame.Data[1] = uint8(length & 0xFF)
+
+	// Copy up to 6 bytes of data
+	for i := 0; i < min(6, remainingBytes); i++ {
+		b, err := strconv.ParseUint(elems[dataIndex+i], 16, 8)
+		if err != nil {
+			return nil, fmt.Errorf("invalid data byte at position %d: %w", i, err)
+		}
+		firstFrame.Data[i+2] = uint8(b)
+	}
+	frames = append(frames, firstFrame)
+
+	remainingBytes -= 6
+	dataIndex += 6
+	seqNum := uint8(1)
+
+	// Consecutive frames
+	for remainingBytes > 0 {
+		frame := &can.Frame{
+			ID:     id,
+			Length: 8,
+		}
+		frame.Data[0] = 0x20 | (seqNum & 0x0F) // Consecutive frame PCI byte
+
+		// Copy up to 7 bytes of data
+		bytesToCopy := min(7, remainingBytes)
+		for i := 0; i < bytesToCopy; i++ {
+			b, err := strconv.ParseUint(elems[dataIndex+i], 16, 8)
+			if err != nil {
+				return nil, fmt.Errorf("invalid data byte at position %d: %w", dataIndex+i, err)
+			}
+			frame.Data[i+1] = uint8(b)
+		}
+
+		frames = append(frames, frame)
+		remainingBytes -= bytesToCopy
+		dataIndex += bytesToCopy
+		seqNum++
 	}
 
-	return &retval
+	return frames, nil
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // CanIdFromData returns an encoded ID from its inputs.

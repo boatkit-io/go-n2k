@@ -2,12 +2,17 @@
 package rawendpoint
 
 import (
+	"bufio"
 	"context"
+	"math/rand"
 	"os"
+	"time"
 
+	"github.com/boatkit-io/n2k/pkg/adapter"
 	"github.com/boatkit-io/n2k/pkg/converter"
 	"github.com/boatkit-io/n2k/pkg/endpoint"
 	"github.com/brutella/can"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,6 +22,14 @@ type RawEndpoint struct {
 	log     *logrus.Logger
 	file    *os.File
 	handler endpoint.MessageHandler
+}
+
+// RawFileEndpoint reads a raw log file and sends canbus frames to its output channel.
+type RawFileEndpoint struct {
+	log        *logrus.Logger
+	inFilePath string
+	handler    endpoint.MessageHandler
+	rand       *rand.Rand
 }
 
 // NewRawEndpoint creates a new RAW endpoint
@@ -32,6 +45,15 @@ func NewRawEndpoint(outFilePath string, log *logrus.Logger) *RawEndpoint {
 
 	}
 	return &retval
+}
+
+// NewRawFileEndpoint creates a new raw file endpoint for replaying raw log files
+func NewRawFileEndpoint(file string, log *logrus.Logger) *RawFileEndpoint {
+	return &RawFileEndpoint{
+		log:        log,
+		inFilePath: file,
+		rand:       rand.New(rand.NewSource(time.Now().UnixNano())),
+	}
 }
 
 // Run method opens the specified log file and kicks off a goroutine that sends frames to the handler
@@ -61,4 +83,70 @@ func (r *RawEndpoint) WriteFrame(frame can.Frame) {
 
 	}
 
+}
+
+// Run method opens the specified log file and kicks off a goroutine that sends frames to the handler
+func (r *RawFileEndpoint) Run(ctx context.Context) error {
+	file, err := os.Open(r.inFilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	r.log.Info("starting raw file playback")
+
+	canceled := false
+	go func() {
+		<-ctx.Done()
+		canceled = true
+	}()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if canceled {
+			break
+		}
+
+		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
+
+		frames, err := converter.CanFrameFromRaw(line)
+		if err != nil {
+			r.log.Warnf("Error parsing raw line: %v", err)
+			continue
+		}
+
+		// If this is a multi-frame message, generate a random sequence ID
+		if len(frames) > 1 {
+			seqID := uint8(r.rand.Intn(7)) // Generate random number 0-6
+			for _, frame := range frames {
+				// For all frames: replace bits 5-7 with sequence ID
+				frame.Data[0] = (seqID << 5) | (frame.Data[0] & 0x1F)
+				r.frameReady(frame)
+			}
+		} else {
+			r.frameReady(frames[0])
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		r.log.Warn(errors.Wrap(err, "error while scanning raw replay file"))
+	}
+
+	r.log.Info("raw file playback complete")
+	return nil
+}
+
+// frameReady is a helper to handle passing completed frames to the handler
+func (r *RawFileEndpoint) frameReady(frame adapter.Message) {
+	if r.handler != nil {
+		r.handler.HandleMessage(frame)
+	}
+}
+
+// SetOutput sets the output struct for handling when a message is ready
+func (r *RawFileEndpoint) SetOutput(mh endpoint.MessageHandler) {
+	r.handler = mh
 }

@@ -29,7 +29,9 @@ func main() {
 
 	// Command-line parsing
 	var replayFile string
-	flag.StringVar(&replayFile, "replayFile", "", "An optional replay file to run")
+	var rawReplayFile string
+	flag.StringVar(&replayFile, "replayFile", "", "An optional n2k replay file to run")
+	flag.StringVar(&rawReplayFile, "rawReplayFile", "", "An optional raw replay file to run")
 	var dumpPgns bool
 	var checkUnseen bool
 	var checkMissingOrInvalid bool
@@ -43,7 +45,8 @@ func main() {
 	flag.Parse()
 
 	log := logrus.StandardLogger()
-	log.Infof("in replayfile, dump:%t, checkUnseen:%t writeRaw:%t file:%s\n", dumpPgns, checkUnseen, writeRaw, replayFile)
+	log.Infof("in replayfile, dump:%t, checkUnseen:%t writeRaw:%t file:%s rawFile:%s\n",
+		dumpPgns, checkUnseen, writeRaw, replayFile, rawReplayFile)
 
 	subs := subscribe.New()
 	ca := canadapter.NewCANAdapter(log)
@@ -52,9 +55,15 @@ func main() {
 	ps.SetOutput(subs)
 	ca.SetOutput(ps)
 
+	// N2K file endpoint setup
 	ep := n2kfileendpoint.NewN2kFileEndpoint(replayFile, log)
 	ep.SetOutput(ca)
 
+	// Raw file endpoint setup
+	rep := rawendpoint.NewRawFileEndpoint(rawReplayFile, log)
+	rep.SetOutput(ca)
+
+	// Raw output endpoint setup
 	wep := rawendpoint.NewRawEndpoint(rawOutFile, log)
 	ca.SetWriter(wep)
 
@@ -85,6 +94,14 @@ func main() {
 
 		ctx := context.Background()
 		err := ep.Run(ctx)
+		if err != nil {
+			exitCode = 1
+			return
+		}
+	}
+	if len(rawReplayFile) > 0 {
+		ctx := context.Background()
+		err := rep.Run(ctx)
 		if err != nil {
 			exitCode = 1
 			return

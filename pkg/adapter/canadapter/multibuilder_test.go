@@ -74,10 +74,15 @@ func TestBigPacket(t *testing.T) {
 		if len(line) == 0 {
 			continue
 		}
-		frame := converter.CanFrameFromRaw(line)
-		pInfo := pgn.NewMessageInfo(frame)
-		p = pkt.NewPacket(pInfo, frame.Data[:])
-		m.Add(p)
+		frames, err := converter.CanFrameFromRaw(line)
+		if err != nil {
+			t.Fatalf("Error parsing raw line: %v", err)
+		}
+		for _, frame := range frames {
+			pInfo := pgn.NewMessageInfo(frame)
+			p = pkt.NewPacket(pInfo, frame.Data[:])
+			m.Add(p)
+		}
 	}
 	assert.True(t, p.Complete)
 }

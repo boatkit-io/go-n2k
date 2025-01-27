@@ -12,9 +12,10 @@ import (
 
 func TestPgn127501(t *testing.T) {
 	raw := "2023-01-21T00:04:17Z,3,127501,224,0,8,00,03,c0,ff,ff,ff,ff,ff"
-	f := converter.CanFrameFromRaw(raw)
-	pInfo := pgn.NewMessageInfo(f)
-	p := pkt.NewPacket(pInfo, f.Data[:])
+	f, err := converter.CanFrameFromRaw(raw)
+	assert.Nil(t, err)
+	pInfo := pgn.NewMessageInfo(f[0])
+	p := pkt.NewPacket(pInfo, f[0].Data[:])
 	assert.NotEmpty(t, p.Candidates)
 	p.AddDecoders()
 	assert.Equal(t, len(p.Decoders), 1)
@@ -27,9 +28,10 @@ func TestPgn127501(t *testing.T) {
 
 func TestPgn127501Write(t *testing.T) {
 	raw := "2023-01-21T00:04:17Z,3,127501,224,0,8,00,03,c0,ff,ff,ff,ff,ff"
-	f := converter.CanFrameFromRaw(raw)
-	pInfo := pgn.NewMessageInfo(f)
-	p := pkt.NewPacket(pInfo, f.Data[:])
+	f, err := converter.CanFrameFromRaw(raw)
+	assert.Nil(t, err)
+	pInfo := pgn.NewMessageInfo(f[0])
+	p := pkt.NewPacket(pInfo, f[0].Data[:])
 	assert.NotEmpty(t, p.Candidates)
 	p.AddDecoders()
 	assert.Equal(t, len(p.Decoders), 1)
