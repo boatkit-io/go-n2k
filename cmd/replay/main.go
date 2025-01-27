@@ -4,7 +4,6 @@ import (
 	//	"context"
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"strings"
 
@@ -63,16 +62,8 @@ func main() {
 		if dumpPgns {
 			index := 0
 			_, _ = subs.SubscribeToAllStructs(func(p any) {
-				if v, ok := p.(pgn.PgnStruct); ok {
-					text, err := v.Marshal()
-					if err == nil {
-						fmt.Println(string(text[:]))
-					}
-				} else {
-					log.Infof("dumping PGNs, passed a non-PGN:%d", index)
-				}
+				log.Infof("Handling PGN: %s", pgn.DebugDumpPGN(p))
 				index++
-				//				log.Infof("Handling PGN: %s", pgn.DebugDumpPGN(p))
 			})
 		}
 		if writeRaw {
